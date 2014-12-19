@@ -61,7 +61,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     private val log: Logger = LoggerFactory.getLogger("crawler.engine")
 
     private val db = DBMaker.newFileDB(workingDir.resolve("crawlerdb").toFile()).make()
-    private val peerMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap("addrToStatus")
+    private val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap("addrToStatus")
     [GuardedBy("this")] private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
 
     private val connecting: MutableSet<InetSocketAddress> = Collections.synchronizedSet(HashSet())
@@ -94,11 +94,20 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         kit.startAsync().awaitRunning()
         log.info("Chain synced, querying initial addresses")
         val peer = kit.peerGroup().waitForPeers(1).get()[0]
-        peer.getAddr() later { addr ->
-            log.info("Initial addresses acquired, starting crawl")
-            kit.stopAsync()
-            addressQueue.addAll(addr.getAddresses().map { it.getSocketAddress() })
-            crawl()
+
+        if (okPeers.isEmpty()) {
+            peer.getAddr() later { addr ->
+                log.info("Initial addresses acquired, starting crawl")
+                addressQueue.addAll(addr.getAddresses().map { it.getSocketAddress() })
+                crawl()
+            }
+        } else {
+            // Pick some peers that were considered OK on the last run and recrawl them immediately to kick things off again.
+            log.info("Kicking off crawl with some peers from previous run")
+            console.numOKPeers = okPeers.size()
+            Threading.USER_THREAD.execute() {
+                okPeers.take(20).forEach { attemptConnect(it) }
+            }
         }
     }
 
@@ -111,12 +120,13 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
 
             if (connecting.contains(p)) continue
 
-            val data = peerMap.get(p)
+            val data = addrMap.get(p)
             val currentStatus: PeerStatus? = data?.status
             var doConnect = false
             if (currentStatus == null) {
                 // Not seen this address before and not already probing it
-                peerMap.put(p, PeerData(PeerStatus.UNTESTED, 0, Instant.now()))
+                addrMap.put(p, PeerData(PeerStatus.UNTESTED, 0, Instant.now()))
+                console.numKnownAddresses = addrMap.size()
                 db.commit()
                 doConnect = true
             } else if (currentStatus == PeerStatus.OK) {
@@ -132,16 +142,20 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     }
 
     private fun markAsUnreachable(addr: InetSocketAddress): PeerStatus {
-        val cur = peerMap.get(addr)!!
+        val cur = addrMap.get(addr)!!
         val newData = cur.copy(status = PeerStatus.UNREACHABLE, lastCrawlTime = Instant.now())
-        peerMap.put(addr, newData)
+        addrMap.put(addr, newData)
+        console.numKnownAddresses = addrMap.size()
         db.commit()
-        synchronized(this) { okPeers.remove(addr) }
+        synchronized(this) {
+            okPeers.remove(addr)
+            console.numOKPeers = okPeers.size()
+        }
         return cur.status
     }
 
     private fun markAsOK(addr: InetSocketAddress, peer: Peer) {
-        val peerData = peerMap.get(addr)
+        val peerData = addrMap.get(addr)
         if (peerData != null && peerData.status == PeerStatus.UNREACHABLE && peerData.lastSuccessTime != null)
             log.info("Peer ${addr} came back from the dead")
         var newData = PeerData(
@@ -150,9 +164,13 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
                 serviceBits = peer.getPeerVersionMessage().localServices,
                 lastSuccessTime = Instant.now()
         )
-        peerMap.put(addr, newData)
+        addrMap.put(addr, newData)
+        console.numKnownAddresses = addrMap.size()
         db.commit()
-        synchronized(this) { okPeers.add(addr) }
+        synchronized(this) {
+            okPeers.add(addr)
+            console.numOKPeers = okPeers.size()
+        }
         scheduleRecrawl(addr)
     }
 
@@ -161,7 +179,8 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         val peer = Peer(params, verMsg, null, PeerAddress(addr))
         peer.getVersionHandshakeFuture() later { peer ->
             // Possibly pause a moment to stay within our connects/sec budget.
-            console.successfulConnectsRateLimiter.acquire()
+            val pauseTime = console.successfulConnectsRateLimiter.acquire()
+            console.recordPauseTime(pauseTime)
             onConnect(addr, peer)
         }
         openConnections++
@@ -199,18 +218,20 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         val addrs: List<InetSocketAddress> = if (serviceMask == -1L) {
             size.gatherTimes { okPeers.poll() }.filterNotNull()
         } else {
-            val matches = okPeers.filter { peerMap.get(it)!!.serviceBits and serviceMask == serviceMask }.take(size)
+            val matches = okPeers.filter { addrMap.get(it)!!.serviceBits and serviceMask == serviceMask }.take(size)
             okPeers.removeAll(matches)
             matches
         }
         okPeers.addAll(addrs)
-        return addrs.map { it to peerMap.get(it)!! }
+        return addrs.map { it to addrMap.get(it)!! }
     }
 
     synchronized private fun populateOKPeers() {
         // Shuffle the peers because otherwise MapDB can give them back with very close IP ordering.
-        okPeers addAll peerMap.filter { it.getValue().status == PeerStatus.OK }.map { it.getKey() }.toArrayList().shuffle()
-        log.info("We have ${peerMap.size()} peers in our database of which ${okPeers.size()} are considered OK")
+        okPeers addAll addrMap.filter { it.getValue().status == PeerStatus.OK }.map { it.getKey() }.toArrayList().shuffle()
+        log.info("We have ${addrMap.size()} IP addresses in our database of which ${okPeers.size()} are considered OK")
+        console.numOKPeers = okPeers.size()
+        console.numKnownAddresses = addrMap.size()
     }
 
     private fun scheduleRecrawl(addr: InetSocketAddress) {
@@ -226,6 +247,6 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
 
     private fun scheduleRecrawlsFromDB() {
         // Recrawl peers in the db that are either considered OK, or have disappeared recently
-        peerMap.filter { it.getValue().shouldRecrawl() }.map { it.getKey() }.forEach { scheduleRecrawl(it) }
+        addrMap.filter { it.getValue().shouldRecrawl() }.map { it.getKey() }.forEach { scheduleRecrawl(it) }
     }
 }

@@ -11,6 +11,7 @@ import java.util.logging.Logger
 import joptsimple.OptionParser
 import org.bitcoinj.core.NetworkParameters
 import kotlin.platform.platformStatic
+import joptsimple.OptionSpec
 
 public class BitcoinHTTPSeed {
     class object {
@@ -23,6 +24,7 @@ public class BitcoinHTTPSeed {
             val dnsPort = parser.accepts("dns-port").withRequiredArg().defaultsTo("2053")
             val dnsName = parser.accepts("hostname").withRequiredArg()
             val logToConsole = parser.accepts("log-to-console")
+            val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(20)
 
             val options = parser.parse(*args)
 
@@ -37,6 +39,7 @@ public class BitcoinHTTPSeed {
             setupLogging(dir, options.has(logToConsole))
 
             val console = setupJMX()
+            console.allowedSuccessfulConnectsPerSec = options.valueOf(crawlsPerSec)
             val crawler = Crawler(console, dir, params)
             HTTPServer(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
             if (options.has(dnsName))
