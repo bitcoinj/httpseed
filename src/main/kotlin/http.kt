@@ -46,6 +46,8 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
                     process(exchange)
                 } catch (e: Throwable) {
                     e.printStackTrace()
+                    exchange.sendResponseHeaders(500, -1)
+                    exchange.close()
                 }
             }
         })
@@ -63,8 +65,12 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
         val query: String? = exchange.getRequestURI().getQuery()
         val params: Map<String, String> = if (query != null) Splitter.on('&').trimResults().withKeyValueSeparator("=").split(query) else mapOf()
         val serviceMask = params.get("srvmask")?.toLong()?.and(0xFFFFFF)
-
-        val data = crawler.getSomePeers(30, serviceMask ?: -1)
+        val getutxo = params.get("getutxo") == "true"
+        var data = crawler.getSomePeers(30, serviceMask ?: -1)
+        if (getutxo && serviceMask != null && (serviceMask and 3L) == 3L) {
+            // Filter response to remove broken peers.
+            data = data.filter { it.second.supportsGetUTXO }
+        }
         val protos = data.map { dataToProto(it) }
         val msg = PeerSeedProtos.PeerSeeds.newBuilder()
                 .addAllSeed(protos)

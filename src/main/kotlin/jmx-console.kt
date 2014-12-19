@@ -9,25 +9,31 @@ import java.util.ArrayList
 import kotlin.concurrent.thread
 import com.google.common.util.concurrent.RateLimiter
 import javax.management.MXBean
+import java.util.LinkedList
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import com.google.common.net.HostAndPort
 
 [MXBean]
 public trait ConsoleMXBean {
     public fun getConnectAttempts(): Int
     public fun getTopUserAgents(): List<String>
     public fun getTotalPauseTimeSecs(): Double
-    public var numKnownAddresses: Int
-        protected set
-    public var numOKPeers: Int
-        protected set
+    public val numKnownAddresses: Int
+    public val numOKPeers: Int
 
     public var allowedSuccessfulConnectsPerSec: Int
     public var recrawlMinutes: Long
+
+    public fun queueCrawl(ip: String)
 }
 
 class Console : ConsoleMXBean {
     private val userAgents: HashMultiset<String> = HashMultiset.create()
     private var connects: Int = 0
     private var totalPauseTimeSecs = 0.0
+
+    public var crawler: Crawler? = null
 
     var successfulConnectsRateLimiter: RateLimiter = RateLimiter.create(20.0)
         [synchronized] get
@@ -66,4 +72,10 @@ class Console : ConsoleMXBean {
     override var numOKPeers: Int = 0
         [synchronized] get
         [synchronized] public set
+
+    override fun queueCrawl(ip: String) {
+        val hostAndPort = HostAndPort.fromString(ip)
+        val sockaddr = InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort())
+        crawler!!.attemptConnect(sockaddr)
+    }
 }
