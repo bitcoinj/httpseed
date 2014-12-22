@@ -26,6 +26,7 @@ public trait ConsoleMXBean {
     public var recrawlMinutes: Long
 
     public fun queueCrawl(ip: String)
+    public fun queryStatus(ip: String): String
 }
 
 class Console : ConsoleMXBean {
@@ -74,8 +75,15 @@ class Console : ConsoleMXBean {
         [synchronized] public set
 
     override fun queueCrawl(ip: String) {
+        val sockaddr = parseIp(ip)
+        crawler!!.attemptConnect(sockaddr)
+    }
+
+    override fun queryStatus(ip: String): String = crawler!!.fetchIPStatus(parseIp(ip))?.status?.toString() ?: "Unknown"
+
+    private fun parseIp(ip: String): InetSocketAddress {
         val hostAndPort = HostAndPort.fromString(ip)
         val sockaddr = InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort())
-        crawler!!.attemptConnect(sockaddr)
+        return sockaddr
     }
 }

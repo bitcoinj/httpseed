@@ -42,6 +42,11 @@ import java.util.concurrent.TimeoutException
 import org.bitcoinj.params.MainNetParams
 import org.bitcoinj.core.Coin
 import org.bitcoinj.core.UTXOsMessage
+import org.bitcoinj.core.AbstractPeerEventListener
+import org.bitcoinj.core.Message
+import org.bitcoinj.core.AddressMessage
+import java.util.concurrent.CompletableFuture
+import java.util.function.Supplier
 
 enum class PeerStatus {
     UNTESTED
@@ -105,12 +110,26 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         log.info("Chain synced, querying initial addresses")
         val peer = kit.peerGroup().waitForPeers(1).get()[0]
 
-        if (okPeers.isEmpty()) {
-            peer.getAddr() later { addr ->
-                log.info("Initial addresses acquired, starting crawl")
-                addressQueue.addAll(addr.getAddresses().map { it.getSocketAddress() })
-                crawl()
+        // When we receive an addr broadcast from our long-term network connections, queue up the addresses for crawling.
+        kit.peerGroup().addEventListener(object : AbstractPeerEventListener() {
+            override fun onPreMessageReceived(peer: Peer, m: Message): Message {
+                if (m is AddressMessage) {
+                    Threading.USER_THREAD execute {
+                        val fresh = m.getAddresses().filterNot { addrMap.containsKey(it.getSocketAddress()) }
+                        if (fresh.isNotEmpty()) {
+                            log.info("Got ${fresh.size()} new address(es) from ${peer}")
+                            addressQueue.addAll(m.getAddresses().map { it.getSocketAddress() })
+                            crawl()
+                        }
+                    }
+                }
+                return m
             }
+        }, Threading.SAME_THREAD)
+
+        if (okPeers.isEmpty()) {
+            // First run: request some addresses. Response will be handled by the event listener above.
+            peer.getAddr()
         } else {
             // Pick some peers that were considered OK on the last run and recrawl them immediately to kick things off again.
             log.info("Kicking off crawl with some peers from previous run")
@@ -238,7 +257,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             if (params == TestNet3Params.get()) {
                 txhash = Sha256Hash("1c899ae8efd6bd460e517195dc34d2beeca9c5e76ff98af644cf6a28807f86cf")
                 outcheck = { it.getValue() == Coin.parseCoin("0.00001") && it.getScriptPubKey().isSentToAddress() && it.getScriptPubKey().getToAddress(params).toString() == "mydzGfTrtHx8KnCRu43HfKwYyKjjSo6gUB" }
-                height = UTXOsMessage.MEMPOOL_HEIGHT
+                height = 314941
             } else if (params == MainNetParams.get()) {
                 // For now just assume Satoshi never spends the first block ever mined. There are much
                 // more sophisticated and randomized tests possible, but currently we only check for mistakes and
@@ -251,9 +270,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             val answer = peer.getUTXOs(listOf(TransactionOutPoint(params, 0, txhash))).get(10, TimeUnit.SECONDS)
             val rightHeight = answer.getHeights()[0] == height
             val rightSpentness = answer.getHitMap().size() == 1 && answer.getHitMap()[0] == 1.toByte()
-            val rightOutput = if (answer.getOutputs().size() == 1) {
-                outcheck(answer.getOutputs()[0])
-            } else false
+            val rightOutput = if (answer.getOutputs().size() == 1) outcheck(answer.getOutputs()[0]) else false
             if (!rightHeight || !rightSpentness || !rightOutput) {
                 log.warn("Found peer ${sockaddr} which has the GETUTXO service bit set but didn't answer the test query correctly")
                 log.warn("Got ${answer}")
@@ -309,5 +326,12 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     private fun scheduleRecrawlsFromDB() {
         // Recrawl peers in the db that are either considered OK, or have disappeared recently
         addrMap.filter { it.getValue().shouldRecrawl() }.map { it.getKey() }.forEach { scheduleRecrawl(it) }
+    }
+
+    public fun fetchIPStatus(ip: InetSocketAddress): PeerData? {
+        // TODO: bcj user thread should probably be a proper scheduled executor, then this would be cleaner.
+        return CompletableFuture.supplyAsync(object : Supplier<PeerData?> {
+            override fun get() = addrMap.get(ip)
+        }, Threading.USER_THREAD).get()
     }
 }
