@@ -79,7 +79,7 @@ class Console : ConsoleMXBean {
         crawler!!.attemptConnect(sockaddr)
     }
 
-    override fun queryStatus(ip: String): String = crawler!!.fetchIPStatus(parseIp(ip))?.status?.toString() ?: "Unknown"
+    override fun queryStatus(ip: String): String = crawler!!.addrMap.get(parseIp(ip))?.status?.toString() ?: "Unknown"
 
     private fun parseIp(ip: String): InetSocketAddress {
         val hostAndPort = HostAndPort.fromString(ip)

@@ -22,7 +22,7 @@ public class BitcoinHTTPSeed {
             val dirArg = parser.accepts("dir").withRequiredArg()
             val httpPort = parser.accepts("http-port").withRequiredArg().defaultsTo("8080")
             val dnsPort = parser.accepts("dns-port").withRequiredArg().defaultsTo("2053")
-            val dnsName = parser.accepts("hostname").withRequiredArg()
+            val hostname = parser.accepts("hostname").withRequiredArg()
             val logToConsole = parser.accepts("log-to-console")
             val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(20)
 
@@ -30,6 +30,10 @@ public class BitcoinHTTPSeed {
 
             if (!options.has(dirArg)) {
                 println("You must specify a working directory with --dir=/path/to/directory")
+                return
+            }
+            if (!options.has(hostname)) {
+                println("You must specify the public --hostname of this machine.")
                 return
             }
             val dir = Paths.get(options.valueOf(dirArg))
@@ -40,10 +44,10 @@ public class BitcoinHTTPSeed {
 
             val console = setupJMX()
             console.allowedSuccessfulConnectsPerSec = options.valueOf(crawlsPerSec)
-            val crawler = Crawler(console, dir, params)
+            val crawler = Crawler(console, dir, params, options.valueOf(hostname))
             HTTPServer(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
-            if (options.has(dnsName))
-                DnsServer(options.valueOf(dnsName), options.valueOf(dnsPort).toInt(), crawler).start()
+            if (options.has(hostname))
+                DnsServer(options.valueOf(hostname), options.valueOf(dnsPort).toInt(), crawler).start()
             crawler.start()
         }
 

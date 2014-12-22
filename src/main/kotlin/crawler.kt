@@ -51,6 +51,7 @@ import java.util.function.Supplier
 enum class PeerStatus {
     UNTESTED
     UNREACHABLE
+    BEHIND   // Not caught up with the block chain
     OK
 }
 
@@ -62,19 +63,19 @@ data class PeerData(val status: PeerStatus, val serviceBits: Long, val lastCrawl
     }
 
     // We recrawl nodes that are currently up to check they're still alive, or nodes which *were* up within the last day
-    // but have disappeared to see if they come back.
-    fun shouldRecrawl() = status == PeerStatus.OK ||
+    // but have disappeared to see if they come back, or nodes that were behind when we last checked them.
+    fun shouldRecrawl() = status == PeerStatus.OK || status == PeerStatus.BEHIND ||
                             (status == PeerStatus.UNREACHABLE &&
-                             lastSuccessTime != null &&
-                             lastSuccessTime isAfter Instant.now() - Duration.ofDays(1))
+                             lastSuccessTime != null && lastSuccessTime isAfter Instant.now() - Duration.ofDays(1))
 }
 
 // Crawler engine
-class Crawler(private val console: Console, private val workingDir: Path, private val params: NetworkParameters) {
+class Crawler(private val console: Console, private val workingDir: Path, private val params: NetworkParameters, private val hostname: String) {
     private val log: Logger = LoggerFactory.getLogger("crawler.engine")
 
+    private val kit = WalletAppKit(params, workingDir.toFile(), "crawler")
     private val db = DBMaker.newFileDB(workingDir.resolve("crawlerdb").toFile()).make()
-    private val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap("addrToStatus")
+    public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap("addrToStatus")
     [GuardedBy("this")] private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
 
     private val connecting: MutableSet<InetSocketAddress> = Collections.synchronizedSet(HashSet())
@@ -102,7 +103,6 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         ccm.startAsync().awaitRunning()
 
         // We use a regular WAK setup to learn about the state of the network but not to crawl it.
-        val kit = WalletAppKit(params, workingDir.toFile(), "crawler")
         kit.setUserAgent("Crawler", "1.0")
         // kit.setPeerNodes(PeerAddress(InetSocketAddress("vinumeris.com", params.getPort())))
         log.info("Waiting for block chain headers to sync ...")
@@ -118,7 +118,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
                         val fresh = m.getAddresses().filterNot { addrMap.containsKey(it.getSocketAddress()) }
                         if (fresh.isNotEmpty()) {
                             log.info("Got ${fresh.size()} new address(es) from ${peer}")
-                            addressQueue.addAll(m.getAddresses().map { it.getSocketAddress() })
+                            queueAddrs(m)
                             crawl()
                         }
                     }
@@ -150,19 +150,14 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             if (connecting.contains(p)) continue
 
             val data = addrMap.get(p)
-            val currentStatus: PeerStatus? = data?.status
-            var doConnect = false
-            if (currentStatus == null) {
+            var doConnect = if (data == null) {
                 // Not seen this address before and not already probing it
                 addrMap.put(p, PeerData(PeerStatus.UNTESTED, 0, Instant.now()))
                 console.numKnownAddresses = addrMap.size()
                 db.commit()
-                doConnect = true
-            } else if (currentStatus == PeerStatus.OK) {
-                doConnect = data!!.isTimeToRecrawl(console.recrawlMinutes)
-            } else if (currentStatus == PeerStatus.UNREACHABLE) {
-                // Recrawl an unreachable host if it was OK within the last 24 hours and we reached the recrawl time
-                doConnect = data!!.shouldRecrawl() && data.isTimeToRecrawl(console.recrawlMinutes)
+                true
+            } else {
+                data.shouldRecrawl() && data.isTimeToRecrawl(console.recrawlMinutes)
             }
 
             if (doConnect)
@@ -170,9 +165,9 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         }
     }
 
-    private fun markAsUnreachable(addr: InetSocketAddress): PeerStatus {
+    private fun markAs(addr: InetSocketAddress, status: PeerStatus): PeerStatus {
         val cur = addrMap.get(addr)!!
-        val newData = cur.copy(status = PeerStatus.UNREACHABLE, lastCrawlTime = Instant.now())
+        val newData = cur.copy(status = status, lastCrawlTime = Instant.now())
         addrMap.put(addr, newData)
         console.numKnownAddresses = addrMap.size()
         db.commit()
@@ -221,7 +216,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         console.recordConnectAttempt()
         ccm.openConnection(addr, peer) later { sockaddr, error ->
             if (error != null) {
-                if (markAsUnreachable(addr) == PeerStatus.OK) {
+                if (markAs(addr, PeerStatus.UNREACHABLE) == PeerStatus.OK) {
                     // Was previously OK, now gone.
                     log.info("Peer ${addr} has disappeared: will keep retrying for 24 hours")
                     scheduleRecrawl(addr)
@@ -231,12 +226,31 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         }
     }
 
+    private fun queueAddrs(addr: AddressMessage) {
+        addressQueue.addAll(addr.getAddresses().map {
+            val sockaddr = it.toSocketAddress()
+            // If we found a peer on the same machine as the crawler, look up our own hostname to find the public IP
+            // instead of publishing localhost.
+            if (sockaddr.getAddress().isAnyLocalAddress())
+                InetSocketAddress(hostname, sockaddr.getPort())
+            else
+                sockaddr
+        })
+    }
+
     private fun onConnect(sockaddr: InetSocketAddress, peer: Peer) {
         connecting.remove(sockaddr)
-        markAsOK(sockaddr, peer)
         console.record(peer.getPeerVersionMessage())
+
+        val heightDiff = kit.chain().getBestChainHeight() - peer.getBestHeight()
+        if (heightDiff > 6) {
+            log.warn("Peer ${peer} is behind our block chain by ${heightDiff} blocks")
+            markAs(sockaddr, PeerStatus.BEHIND)
+        } else {
+            markAsOK(sockaddr, peer)
+        }
         peer.getAddr() later { addr ->
-            addressQueue.addAll(addr.getAddresses().map { it.toSocketAddress() })
+            queueAddrs(addr)
 
             if (peer.getPeerVersionMessage().isGetUTXOsSupported()) {
                 // Check if it really is, to catch peers that are using the service bit for something else.
@@ -326,12 +340,5 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     private fun scheduleRecrawlsFromDB() {
         // Recrawl peers in the db that are either considered OK, or have disappeared recently
         addrMap.filter { it.getValue().shouldRecrawl() }.map { it.getKey() }.forEach { scheduleRecrawl(it) }
-    }
-
-    public fun fetchIPStatus(ip: InetSocketAddress): PeerData? {
-        // TODO: bcj user thread should probably be a proper scheduled executor, then this would be cleaner.
-        return CompletableFuture.supplyAsync(object : Supplier<PeerData?> {
-            override fun get() = addrMap.get(ip)
-        }, Threading.USER_THREAD).get()
     }
 }
