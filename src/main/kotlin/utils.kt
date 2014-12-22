@@ -1,10 +1,7 @@
 package net.plan99.bitcoin.crawler
 
-import com.google.common.util.concurrent.ListenableFuture
-import java.util.concurrent.Executor
+import com.google.common.util.concurrent.*
 import org.bitcoinj.utils.Threading
-import com.google.common.util.concurrent.Futures
-import com.google.common.util.concurrent.FutureCallback
 import com.google.protobuf.ByteString
 import java.util.ArrayList
 import java.util.Collections

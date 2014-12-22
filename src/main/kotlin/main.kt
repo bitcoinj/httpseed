@@ -1,17 +1,13 @@
 package net.plan99.bitcoin.crawler
 
-import java.nio.file.Path
-import java.util.logging.FileHandler
+import java.nio.file.*
+import java.util.logging.*
 import org.bitcoinj.utils.BriefLogFormatter
-import java.util.logging.Level
-import java.nio.file.Paths
+import org.bitcoinj.core.NetworkParameters
 import java.lang.management.ManagementFactory
 import javax.management.ObjectName
-import java.util.logging.Logger
 import joptsimple.OptionParser
-import org.bitcoinj.core.NetworkParameters
 import kotlin.platform.platformStatic
-import joptsimple.OptionSpec
 
 public class BitcoinHTTPSeed {
     class object {

@@ -1,28 +1,17 @@
 package net.plan99.bitcoin.crawler
 
-import com.sun.net.httpserver.HttpServer
-import java.net.InetSocketAddress
-import com.sun.net.httpserver.HttpHandler
-import com.sun.net.httpserver.HttpExchange
-import java.net.HttpURLConnection
-import com.googlecode.protobuf.format.HtmlFormat
-import com.googlecode.protobuf.format.JsonFormat
-import com.googlecode.protobuf.format.XmlFormat
+import com.sun.net.httpserver.*
+import com.googlecode.protobuf.format.*
 import com.google.common.base.Splitter
-import org.bitcoinj.core.VersionMessage
-import java.nio.file.Path
-import org.bitcoinj.core.ECKey
-import org.bitcoinj.core.DumpedPrivateKey
-import org.bitcoinj.params.MainNetParams
-import com.subgraph.orchid.data.Base32
 import com.google.common.io.BaseEncoding
-import org.slf4j.LoggerFactory
-import java.nio.file.Files
-import java.time.Instant
-import org.bitcoinj.core.Sha256Hash
-import org.bitcoin.crawler.PeerSeedProtos
+import java.net.*
+import java.nio.file.*
 import java.io.ByteArrayOutputStream
+import java.time.Instant
 import java.util.zip.GZIPOutputStream
+import org.bitcoinj.core.*
+import org.slf4j.LoggerFactory
+import org.bitcoin.crawler.PeerSeedProtos
 
 class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
     private val log = LoggerFactory.getLogger("crawler.http")

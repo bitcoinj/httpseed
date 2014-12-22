@@ -1,18 +1,9 @@
 package net.plan99.bitcoin.crawler
 
 import kotlin.concurrent.thread
-import java.net.DatagramSocket
-import java.net.DatagramPacket
-import org.xbill.DNS.Message
 import org.slf4j.LoggerFactory
-import org.xbill.DNS.Header
-import org.xbill.DNS.Opcode
-import org.xbill.DNS.Rcode
-import org.xbill.DNS.Section
-import org.xbill.DNS.Flags
-import org.xbill.DNS.ARecord
-import org.xbill.DNS.Name
-import java.net.InetAddress
+import org.xbill.DNS.*
+import java.net.*
 
 // A small, simple DNS server.
 class DnsServer(private val dnsName: String, private val port: Int, private val crawler: Crawler) {

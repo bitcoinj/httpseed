@@ -1,18 +1,13 @@
 package net.plan99.bitcoin.crawler
 
-import com.google.common.collect.Multiset
 import com.google.common.collect.Multisets
 import com.google.common.collect.HashMultiset
-import org.bitcoinj.core.VersionMessage
-import com.google.common.collect.Collections2
-import java.util.ArrayList
-import kotlin.concurrent.thread
 import com.google.common.util.concurrent.RateLimiter
-import javax.management.MXBean
-import java.util.LinkedList
-import java.net.InetAddress
-import java.net.InetSocketAddress
 import com.google.common.net.HostAndPort
+import org.bitcoinj.core.VersionMessage
+import java.util.ArrayList
+import java.net.InetSocketAddress
+import javax.management.MXBean
 
 [MXBean]
 public trait ConsoleMXBean {
