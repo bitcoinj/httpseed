@@ -39,7 +39,7 @@ public class BitcoinHTTPSeed {
             setupLogging(dir, options.has(logToConsole))
 
             val console = setupJMX()
-            console.allowedSuccessfulConnectsPerSec = options.valueOf(crawlsPerSec)
+            console.allowedConnectsPerSec = options.valueOf(crawlsPerSec)
             val crawler = Crawler(console, dir, params, options.valueOf(hostname))
             HTTPServer(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
             if (options.has(hostname))

@@ -176,11 +176,11 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         connecting.add(addr)
         val peer = Peer(params, verMsg, null, PeerAddress(addr))
         peer.getVersionHandshakeFuture() later { peer ->
-            // Possibly pause a moment to stay within our connects/sec budget.
-            val pauseTime = console.successfulConnectsRateLimiter.acquire()
-            console.recordPauseTime(pauseTime)
             onConnect(addr, peer)
         }
+        // Possibly pause a moment to stay within our connects/sec budget.
+        val pauseTime = console.connectsRateLimiter.acquire()
+        console.recordPauseTime(pauseTime)
         openConnections++
         console.recordConnectAttempt()
         ccm.openConnection(addr, peer) later { sockaddr, error ->
@@ -297,13 +297,17 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
 
     private fun scheduleRecrawl(addr: InetSocketAddress) {
         recrawlExecutor.schedule({
-            // Running on the wrong thread here, so get back onto the right one.
-            // TODO: bcj user thread should probably be a proper scheduled executor
-            Threading.USER_THREAD.execute() {
-                addressQueue.add(addr)
-                crawl()
-            }
+            queueAndCrawl(addr)
         }, console.recrawlMinutes, TimeUnit.MINUTES)
+    }
+
+    private fun queueAndCrawl(addr: InetSocketAddress) {
+        // Running on the wrong thread here, so get back onto the right one.
+        // TODO: bcj user thread should probably be a proper scheduled executor
+        Threading.USER_THREAD.execute() {
+            addressQueue.add(addr)
+            crawl()
+        }
     }
 
     private fun scheduleRecrawlsFromDB() {

@@ -17,7 +17,7 @@ public trait ConsoleMXBean {
     public val numKnownAddresses: Int
     public val numOKPeers: Int
 
-    public var allowedSuccessfulConnectsPerSec: Int
+    public var allowedConnectsPerSec: Int
     public var recrawlMinutes: Long
 
     public fun queueCrawl(ip: String)
@@ -31,15 +31,15 @@ class Console : ConsoleMXBean {
 
     public var crawler: Crawler? = null
 
-    var successfulConnectsRateLimiter: RateLimiter = RateLimiter.create(20.0)
+    var connectsRateLimiter: RateLimiter = RateLimiter.create(15.0)
         [synchronized] get
         [synchronized] private set
 
     // Allow JMX consoles to modify the rate limit on the fly
-    override var allowedSuccessfulConnectsPerSec: Int = successfulConnectsRateLimiter.getRate().toInt()
-        [synchronized] get
+    override var allowedConnectsPerSec: Int
+        [synchronized] get() = connectsRateLimiter.getRate().toInt()
         [synchronized] set(value) {
-            successfulConnectsRateLimiter = RateLimiter.create(value.toDouble())
+            connectsRateLimiter = RateLimiter.create(value.toDouble())
         }
 
     override var recrawlMinutes = 30L
