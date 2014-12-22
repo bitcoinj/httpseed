@@ -1,4 +1,4 @@
-package net.plan99.bitcoin.crawler
+package net.plan99.bitcoin.cartographer
 
 import org.bitcoinj.params.*
 import org.bitcoinj.core.*
@@ -40,9 +40,9 @@ data class PeerData(val status: PeerStatus, val serviceBits: Long, val lastCrawl
 
 // Crawler engine
 class Crawler(private val console: Console, private val workingDir: Path, private val params: NetworkParameters, private val hostname: String) {
-    private val log: Logger = LoggerFactory.getLogger("crawler.engine")
+    private val log: Logger = LoggerFactory.getLogger("cartographer.engine")
 
-    private val kit = WalletAppKit(params, workingDir.toFile(), "crawler")
+    private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
     private val db = DBMaker.newFileDB(workingDir.resolve("crawlerdb").toFile()).make()
     public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap("addrToStatus")
     [GuardedBy("this")] private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
@@ -198,7 +198,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     private fun queueAddrs(addr: AddressMessage) {
         addressQueue.addAll(addr.getAddresses().map {
             val sockaddr = it.toSocketAddress()
-            // If we found a peer on the same machine as the crawler, look up our own hostname to find the public IP
+            // If we found a peer on the same machine as the cartographer, look up our own hostname to find the public IP
             // instead of publishing localhost.
             if (sockaddr.getAddress().isAnyLocalAddress())
                 InetSocketAddress(hostname, sockaddr.getPort())

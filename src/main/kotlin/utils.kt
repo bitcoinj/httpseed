@@ -1,4 +1,4 @@
-package net.plan99.bitcoin.crawler
+package net.plan99.bitcoin.cartographer
 
 import com.google.common.util.concurrent.*
 import org.bitcoinj.utils.Threading

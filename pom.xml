@@ -28,7 +28,7 @@
                     </filters>
                     <transformers>
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                            <mainClass>net.plan99.bitcoin.crawler.BitcoinHTTPSeed</mainClass>
+                            <mainClass>net.plan99.bitcoin.cartographer.BitcoinHTTPSeed</mainClass>
                         </transformer>
                     </transformers>
                     <outputFile>target/httpseed.jar</outputFile>

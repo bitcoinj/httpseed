@@ -1,7 +1,9 @@
-Bitcoin HTTP seed
-=================
+Bitcoin Cartographer
+====================
 
-Like all peer to peer networks, Bitcoin requires well known seeds (sometimes called directories) that can be used to
+Cartographer is a Bitcoin peer to peer network crawler and seed server.
+
+Like all peer to peer networks, Bitcoin requires hard coded starting points (sometimes called directories) that can be used to
 find some initial peers to connect to. Currently Bitcoin nodes and wallets use DNS lookups for this purpose. DNS is
 simple but increasingly inadequate for our needs:
 
@@ -32,11 +34,6 @@ There is support in bitcoinj git master (from 0.13-SNAPSHOT onwards) for using t
 The code is written in Kotlin (sort of like a smaller, simpler Scala), so it's concise and easy to hack. Despite the
 large number of features it comes to only about 570 lines of code.
 
-Status
-======
-
-Experimental: not yet been stress tested or run on the main network.
-
 Usage
 =====
 
@@ -49,12 +46,6 @@ java -jar httpseed.jar --dir=/path/to/a/working/directory --net={test,main} --ht
 Flags should be self explanatory. A signing key will be created and saved into the working directory the first time you
 run the app. After that it'll be reused for signing. By running with --log-to-console you will see the public key in
 hex and this can be distributed in applications (assuming you keep your private key safe of course!).
-
-TODO
-====
-
-* Should exclude peers that are stuck too far behind the tip of the block chain
-* Needs testing on the main network
 
 Possible future features
 ========================

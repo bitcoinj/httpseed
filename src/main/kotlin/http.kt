@@ -1,4 +1,4 @@
-package net.plan99.bitcoin.crawler
+package net.plan99.bitcoin.cartographer
 
 import com.sun.net.httpserver.*
 import com.googlecode.protobuf.format.*
@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import org.bitcoin.crawler.PeerSeedProtos
 
 class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
-    private val log = LoggerFactory.getLogger("crawler.http")
+    private val log = LoggerFactory.getLogger("cartographer.http")
     private val server: HttpServer
     private val privkey: ECKey
 

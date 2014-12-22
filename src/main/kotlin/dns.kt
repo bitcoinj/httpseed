@@ -1,4 +1,4 @@
-package net.plan99.bitcoin.crawler
+package net.plan99.bitcoin.cartographer
 
 import kotlin.concurrent.thread
 import org.slf4j.LoggerFactory
@@ -7,7 +7,7 @@ import java.net.*
 
 // A small, simple DNS server.
 class DnsServer(private val dnsName: String, private val port: Int, private val crawler: Crawler) {
-    private val log = LoggerFactory.getLogger("crawler.dnsserver")
+    private val log = LoggerFactory.getLogger("cartographer.dnsserver")
 
     public fun start() {
         thread(start = true, daemon = true, name = "DNS UDP", block = {

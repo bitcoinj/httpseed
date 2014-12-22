@@ -1,4 +1,4 @@
-package net.plan99.bitcoin.crawler
+package net.plan99.bitcoin.cartographer
 
 import java.nio.file.*
 import java.util.logging.*
@@ -49,7 +49,7 @@ public class BitcoinHTTPSeed {
 
         private fun setupJMX(): Console {
             val mbs = ManagementFactory.getPlatformMBeanServer();
-            val name = ObjectName("net.plan99.bitcoin.crawler:type=Console")
+            val name = ObjectName("net.plan99.bitcoin.cartographer:type=Console")
             val console = Console()
             mbs.registerMBean(console, name)
             return console
