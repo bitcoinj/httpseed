@@ -66,13 +66,13 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         populateOKPeers()    // Load from DB
         scheduleRecrawlsFromDB()
 
-        verMsg.appendToSubVer("Crawler", "1.0", null)
+        verMsg.appendToSubVer("Cartographer", "1.0", null)
 
         // We use the low level networking API to crawl, because PeerGroup does things like backoff/retry/etc which we don't want.
         ccm.startAsync().awaitRunning()
 
         // We use a regular WAK setup to learn about the state of the network but not to crawl it.
-        kit.setUserAgent("Crawler", "1.0")
+        kit.setUserAgent("Cartographer", "1.0")
         // kit.setPeerNodes(PeerAddress(InetSocketAddress("vinumeris.com", params.getPort())))
         log.info("Waiting for block chain headers to sync ...")
         kit.startAsync().awaitRunning()
@@ -118,7 +118,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
 
             if (connecting.contains(p)) continue
 
-            val data = addrMap.get(p)
+            val data = addrMap[p]
             var doConnect = if (data == null) {
                 // Not seen this address before and not already probing it
                 addrMap.put(p, PeerData(PeerStatus.UNTESTED, 0, Instant.now()))
@@ -200,10 +200,13 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             val sockaddr = it.toSocketAddress()
             // If we found a peer on the same machine as the cartographer, look up our own hostname to find the public IP
             // instead of publishing localhost.
-            if (sockaddr.getAddress().isAnyLocalAddress())
-                InetSocketAddress(hostname, sockaddr.getPort())
-            else
+            if (sockaddr.getAddress().isAnyLocalAddress() || sockaddr.getAddress().isLoopbackAddress()) {
+                val rs = InetSocketAddress(hostname, sockaddr.getPort())
+                log.info("Replacing ${sockaddr} with ${rs}")
+                rs
+            } else {
                 sockaddr
+            }
         })
     }
 

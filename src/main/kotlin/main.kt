@@ -19,6 +19,7 @@ public class BitcoinHTTPSeed {
             val httpPort = parser.accepts("http-port").withRequiredArg().defaultsTo("8080")
             val dnsPort = parser.accepts("dns-port").withRequiredArg().defaultsTo("2053")
             val hostname = parser.accepts("hostname").withRequiredArg()
+            val dnsname = parser.accepts("dnsname").withRequiredArg()
             val logToConsole = parser.accepts("log-to-console")
             val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(20)
 
@@ -42,8 +43,10 @@ public class BitcoinHTTPSeed {
             console.allowedConnectsPerSec = options.valueOf(crawlsPerSec)
             val crawler = Crawler(console, dir, params, options.valueOf(hostname))
             HTTPServer(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
-            if (options.has(hostname))
-                DnsServer(options.valueOf(hostname), options.valueOf(dnsPort).toInt(), crawler).start()
+            if (options.has(dnsname)) {
+                val s = options.valueOf(dnsname)
+                DnsServer(if (s.endsWith('.')) s else s + '.', options.valueOf(dnsPort).toInt(), crawler).start()
+            }
             crawler.start()
         }
 
