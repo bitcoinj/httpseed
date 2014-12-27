@@ -41,11 +41,66 @@ Currently you need to compile it yourself. Grab yourself a JDK 8 and Maven then 
 
 Once you have the JAR, use it like this:
 
-java -jar httpseed.jar --dir=/path/to/a/working/directory --net={test,main} --http-port=8080 --dns-port=2053 --hostname=seed.example.com --log-to-console
+```
+java -Xmx300m
+     -jar httpseed.jar
+     --dir=/path/to/a/working/directory
+     --net={test,main}
+     --http-port=8080
+     --dns-hostname={main,test}.seed.example.com
+     --dns-port=2053
+     --hostname=example.com
+     --log-to-console
+     --crawls-per-sec=15
+```
 
-Flags should be self explanatory. A signing key will be created and saved into the working directory the first time you
-run the app. After that it'll be reused for signing. By running with --log-to-console you will see the public key in
-hex and this can be distributed in applications (assuming you keep your private key safe of course!).
+Most flags are self explanatory. A few that aren't:
+
+* `-Xmx300m`: Here we are allocating a max of 300mb of RAM, which should be plenty. You can set it to less but watch
+  out for CPU spinning (i.e. it's constantly garbage collecting) if you set it too low.
+* `--hostname`: This should be the hostname of the box that is running the crawler. It will be resolved and used to
+  substitute for a localhost IP if one is found, to avoid problems with machines that report their hostname wrong.
+* `--dns-hostname` (optional): This name will be reported for _any_ DNS query made to the given DNS port via UDP. It
+  should be set to whatever hostname you have allocated for DNS if you have chosen to do so.
+* `--crawls-per-sec`: Max connects per second to do. If this is set too high then you might not be able to crawl
+  the full network because you'll max out your CPU or bandwidth and you will end up with initial connections timing
+  out (then they won't be recrawled). 15 is a lower bound, it works OK for a weak VPS.
+
+The other flags should be self explanatory. A signing key will be created and saved into the working directory the first
+time you run the app. After that it'll be reused for signing. By running with --log-to-console you will see the public
+key in hex and this can be distributed in applications (assuming you keep your private key safe of course!).
+
+In many setups you will want to run the server as a non-root user. You can use iptables to redirect the DNS port. Then
+just add an NS record for the right host name.
+
+
+Using JMX
+=========
+
+It can be useful to monitor and control your crawler remotely. Cartographer exports various statistics and knobs
+via a technology called JMX. JMX is not a perfect monitoring tool by any means, but it is extremely simple to implement
+(look at jmx-console.kt to see how little code is required).
+
+It's a bad idea to run with JMX active all the time, because it doesn't tunnel well via SSH and the setup below will
+only be protected by a cleartext password. So don't use it unless you have a trustworthy connection.
+
+To activate it, you need to do a few things:
+
+1. Create a secure password, e.g. `password=$( head /dev/urandom | shasum )`
+2. Add it to lib/management/jmxremote.password file in your JRE like this: `echo "controlRole $password" >>lib/management/jmxremote.password`
+3. Make sure the permissions on that file are restricted to only you: `chmod 400 lib/management/jmxremote.password`
+2. Add `-Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.port=7091` to the command line before `-jar` and run the crawler as before.
+
+You can now use any JMX console to connect to the server and monitor/control it. For example the Mission Control
+program that comes with the latest JDK is passable (I haven't yet found a JMX console I'd describe as excellent).
+Run it locally on your desktop using the "jmc" command. Then add your hostname as a remote connection and open
+"MBean Server". You should see a bunch of graphs and gauges showing memory, CPU and fragmentation. At the bottom
+there is a row of tabs that expose more info about various things. Click "MBean Browser" to get a tree of objects
+that are exporting stats and knobs in the server. Find the cartographer folder and select the "Console" item.
+
+Now you can see various stats. The bold / yellow highlighted lines are variables that can be modified. You can
+plot graphs of the ones that are changing by right clicking and selecting Visualise.
+
 
 Possible future features
 ========================
