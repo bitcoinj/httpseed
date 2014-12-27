@@ -21,7 +21,7 @@ public class BitcoinHTTPSeed {
             val hostname = parser.accepts("hostname").withRequiredArg()
             val dnsname = parser.accepts("dnsname").withRequiredArg()
             val logToConsole = parser.accepts("log-to-console")
-            val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(20)
+            val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(15)
 
             val options = parser.parse(*args)
 
