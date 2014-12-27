@@ -35,7 +35,15 @@ class DnsServer(private val dnsName: String, private val port: Int, private val 
         response.getHeader().setFlag(Flags.QR.toInt());
         val ips = crawler.getSomePeers(30, -1)
         for (ip in ips) {
-            response.addRecord(ARecord(Name(dnsName), 1, 10, ip.first.getAddress()), Section.ANSWER)
+            val ipaddr = ip.first.getAddress()
+            try {
+                if (ipaddr is Inet4Address)
+                    response.addRecord(ARecord(Name(dnsName), 1, 10, ipaddr), Section.ANSWER)
+                else if (ipaddr is Inet6Address)
+                    response.addRecord(AAAARecord(Name(dnsName), 1, 10, ipaddr), Section.ANSWER)
+            } catch(e: Exception) {
+                log.error("Failed to add record for ${ipaddr}: ${e}")
+            }
         }
         return response.toWire()
     }
