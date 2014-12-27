@@ -99,8 +99,8 @@ there is a row of tabs that expose more info about various things. Click "MBean 
 that are exporting stats and knobs in the server. Find the cartographer folder and select the "Console" item.
 
 Now you can see various stats. The bold / yellow highlighted lines are variables that can be modified. You can
-plot graphs of the ones that are changing by right clicking and selecting Visualise.
-
+plot graphs of the ones that are changing by right clicking and selecting Visualise. From this screen you can
+also submit manual recrawl requests. Include both IP address and port when doing so.
 
 Possible future features
 ========================
