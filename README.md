@@ -37,9 +37,7 @@ large number of features it comes to only about 570 lines of code.
 Usage
 =====
 
-Currently you need to compile it yourself. Grab yourself a JDK 8 and Maven then do "mvn package" (usual story).
-
-Once you have the JAR, use it like this:
+You will need a Java 8 runtime. Then [grab the JAR](https://github.com/mikehearn/httpseed/releases/) and use it like this:
 
 ```
 java -Xmx300m
