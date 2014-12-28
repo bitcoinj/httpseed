@@ -48,6 +48,7 @@ class DnsServer(private val dnsName: Name, private val port: Int, private val cr
             response.getHeader().setFlag(Flags.RD.toInt())
         response.getHeader().setFlag(Flags.QR.toInt());
         response.getHeader().setFlag(Flags.AA.toInt());
+        response.addRecord(message.getQuestion(), Section.QUESTION)
         val ips = crawler.getSomePeers(30, -1)
         for (ip in ips) {
             val ipaddr = ip.first.getAddress()
