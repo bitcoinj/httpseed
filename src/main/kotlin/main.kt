@@ -8,6 +8,7 @@ import java.lang.management.ManagementFactory
 import javax.management.ObjectName
 import joptsimple.OptionParser
 import kotlin.platform.platformStatic
+import org.xbill.DNS.Name
 
 public class BitcoinHTTPSeed {
     class object {
@@ -45,7 +46,7 @@ public class BitcoinHTTPSeed {
             HTTPServer(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
             if (options.has(dnsname)) {
                 val s = options.valueOf(dnsname)
-                DnsServer(if (s.endsWith('.')) s else s + '.', options.valueOf(dnsPort).toInt(), crawler).start()
+                DnsServer(Name(if (s.endsWith('.')) s else s + '.'), options.valueOf(dnsPort).toInt(), crawler).start()
             }
             crawler.start()
         }

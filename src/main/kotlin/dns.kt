@@ -6,7 +6,7 @@ import org.xbill.DNS.*
 import java.net.*
 
 // A small, simple DNS server.
-class DnsServer(private val dnsName: String, private val port: Int, private val crawler: Crawler) {
+class DnsServer(private val dnsName: Name, private val port: Int, private val crawler: Crawler) {
     private val log = LoggerFactory.getLogger("cartographer.dnsserver")
 
     public fun start() {
@@ -21,7 +21,7 @@ class DnsServer(private val dnsName: String, private val port: Int, private val 
                     val outBits = processMessage(Message(inBits))
                     val outPacket = DatagramPacket(outBits, outBits.size(), inPacket.getSocketAddress())
                     socket.send(outPacket)
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     log.error("Error handling DNS request", e)
                 }
             }
@@ -29,19 +29,34 @@ class DnsServer(private val dnsName: String, private val port: Int, private val 
     }
 
     fun processMessage(message: Message): ByteArray {
-        if (message.getHeader().getOpcode() != Opcode.QUERY)
+        val header = message.getHeader()
+        if (header.getOpcode() != Opcode.QUERY) {
+            log.error("Got message with unimplemented opcode {}", header.getOpcode())
             return errorMessage(message, Rcode.NOTIMP)
-        val response = Message(message.getHeader().getID())
+        }
+        if (header.getRcode() != Rcode.NOERROR) {
+            log.error("Got message with bad rcode: ${header.getRcode()}")
+            return errorMessage(message, Rcode.FORMERR)
+        }
+        val queryName = message.getQuestion().getName()
+        if (queryName != dnsName) {
+            log.error("Got query with unrecognised name ${queryName}")
+            return errorMessage(message, Rcode.NXDOMAIN)
+        }
+        val response = Message(header.getID())
+        if (header.getFlag(Flags.RD.toInt()))
+            response.getHeader().setFlag(Flags.RD.toInt())
         response.getHeader().setFlag(Flags.QR.toInt());
+        response.getHeader().setFlag(Flags.AA.toInt());
         val ips = crawler.getSomePeers(30, -1)
         for (ip in ips) {
             val ipaddr = ip.first.getAddress()
             val TTL = 60L  // seconds
             try {
                 if (ipaddr is Inet4Address)
-                    response.addRecord(ARecord(Name(dnsName), 1, TTL, ipaddr), Section.ANSWER)
+                    response.addRecord(ARecord(dnsName, 1, TTL, ipaddr), Section.ANSWER)
                 else if (ipaddr is Inet6Address)
-                    response.addRecord(AAAARecord(Name(dnsName), 1, TTL, ipaddr), Section.ANSWER)
+                    response.addRecord(AAAARecord(dnsName, 1, TTL, ipaddr), Section.ANSWER)
             } catch(e: Exception) {
                 log.error("Failed to add record for ${ipaddr}: ${e}")
             }
