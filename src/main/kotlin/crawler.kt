@@ -84,9 +84,9 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             override fun onPreMessageReceived(peer: Peer, m: Message): Message {
                 if (m is AddressMessage) {
                     Threading.USER_THREAD execute {
-                        val fresh = m.getAddresses().filterNot { addrMap.containsKey(it.getSocketAddress()) }
+                        val fresh = m.getAddresses() filterNot { addrMap containsKey it.getSocketAddress() }
                         if (fresh.isNotEmpty()) {
-                            log.info("Got ${fresh.size()} new address(es) from ${peer}")
+                            log.info("Got ${fresh.size()} new address(es) from ${peer}: ${fresh}")
                             queueAddrs(m)
                             crawl()
                         }
@@ -104,7 +104,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             log.info("Kicking off crawl with some peers from previous run")
             console.numOKPeers = okPeers.size()
             Threading.USER_THREAD.execute() {
-                okPeers.take(20).forEach { attemptConnect(it) }
+                okPeers.take(20) forEach { attemptConnect(it) }
             }
         }
     }
@@ -121,7 +121,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             val data = addrMap[p]
             var doConnect = if (data == null) {
                 // Not seen this address before and not already probing it
-                addrMap.put(p, PeerData(PeerStatus.UNTESTED, 0, Instant.now()))
+                addrMap[p] = PeerData(PeerStatus.UNTESTED, 0, Instant.now())
                 console.numKnownAddresses = addrMap.size()
                 db.commit()
                 true
@@ -135,9 +135,9 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     }
 
     private fun markAs(addr: InetSocketAddress, status: PeerStatus): PeerStatus {
-        val cur = addrMap.get(addr)!!
+        val cur = addrMap[addr]!!
         val newData = cur.copy(status = status, lastCrawlTime = Instant.now())
-        addrMap.put(addr, newData)
+        addrMap[addr] = newData
         console.numKnownAddresses = addrMap.size()
         db.commit()
         synchronized(this) {
@@ -148,7 +148,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     }
 
     private fun markAsOK(addr: InetSocketAddress, peer: Peer) {
-        val peerData = addrMap.get(addr)
+        val peerData: PeerData? = addrMap[addr]
         val oldStatus = peerData?.status
         if (oldStatus == PeerStatus.UNREACHABLE && peerData!!.lastSuccessTime != null)
             log.info("Peer ${addr} came back from the dead")
@@ -158,7 +158,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
                 serviceBits = peer.getPeerVersionMessage().localServices,
                 lastSuccessTime = Instant.now()
         )
-        addrMap.put(addr, newData)
+        addrMap[addr] = newData
         console.numKnownAddresses = addrMap.size()
         db.commit()
 
@@ -196,7 +196,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     }
 
     private fun queueAddrs(addr: AddressMessage) {
-        addressQueue.addAll(addr.getAddresses().map {
+        addressQueue.addAll(addr.getAddresses() map {
             val sockaddr = it.toSocketAddress()
             // If we found a peer on the same machine as the cartographer, look up our own hostname to find the public IP
             // instead of publishing localhost.
@@ -262,7 +262,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
                 log.warn("Got ${answer}")
             } else {
                 log.info("Peer ${sockaddr} is flagged as supporting GETUTXO and passed the test query")
-                addrMap.put(sockaddr, addrMap.get(sockaddr)!!.copy(supportsGetUTXO = true))
+                addrMap[sockaddr] = addrMap[sockaddr]!!.copy(supportsGetUTXO = true)
                 db.commit()
             }
         } catch (e: TimeoutException) {
@@ -282,12 +282,12 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         val addrs: List<InetSocketAddress> = if (serviceMask == -1L) {
             size.gatherTimes { okPeers.poll() }.filterNotNull()
         } else {
-            val matches = okPeers.filter { addrMap.get(it)!!.serviceBits and serviceMask == serviceMask }.take(size)
+            val matches = okPeers.filter { addrMap[it]!!.serviceBits and serviceMask == serviceMask }.take(size)
             okPeers.removeAll(matches)
             matches
         }
         okPeers.addAll(addrs)
-        return addrs.map { it to addrMap.get(it)!! }
+        return addrs.map { it to addrMap[it]!! }
     }
 
     synchronized private fun populateOKPeers() {
@@ -315,6 +315,6 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
 
     private fun scheduleRecrawlsFromDB() {
         // Recrawl peers in the db that are either considered OK, or have disappeared recently
-        addrMap.filter { it.getValue().shouldRecrawl() }.map { it.getKey() }.forEach { scheduleRecrawl(it) }
+        addrMap filter { it.getValue().shouldRecrawl() } map { it.getKey() } forEach { scheduleRecrawl(it) }
     }
 }
