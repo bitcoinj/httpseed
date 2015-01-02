@@ -72,15 +72,17 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
             path.endsWith(".html") -> respond(exchange, protoToHTML(msg), "text/html; charset=UTF-8")
             path.endsWith(".json") -> respond(exchange, protoToJSON(msg), "application/json")
             path.endsWith(".xml") ->  respond(exchange, protoToXML(msg), "text/xml")
+            path.endsWith(".txt") ->  respond(exchange, protoToText(msg), "text/plain")
 
             // Default format is signed protobuf
             else -> respond(exchange, signSerializeAndCompress(msg), "application/octet-stream")
         }
     }
 
-    fun protoToHTML(msg: PeerSeedProtos.PeerSeeds) = HtmlFormat.printToString(msg).toByteArray(Charsets.UTF_8)
-    fun protoToJSON(msg: PeerSeedProtos.PeerSeeds) = JsonFormat.printToString(msg).toByteArray(Charsets.UTF_8)
-    fun protoToXML(msg: PeerSeedProtos.PeerSeeds) = XmlFormat.printToString(msg).toByteArray(Charsets.UTF_8)
+    fun protoToHTML(msg: PeerSeedProtos.PeerSeeds) = HtmlFormat.printToString(msg).toByteArray()
+    fun protoToJSON(msg: PeerSeedProtos.PeerSeeds) = JsonFormat.printToString(msg).toByteArray()
+    fun protoToXML(msg: PeerSeedProtos.PeerSeeds) = XmlFormat.printToString(msg).toByteArray()
+    fun protoToText(msg: PeerSeedProtos.PeerSeeds) = msg.getSeedList().map { it.getIpAddress() }.joinToString(",").toByteArray()
 
     fun dataToProto(data: Pair<InetSocketAddress, PeerData>): PeerSeedProtos.PeerSeedData {
         val builder = PeerSeedProtos.PeerSeedData.newBuilder()

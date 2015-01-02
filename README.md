@@ -3,6 +3,8 @@ Bitcoin Cartographer
 
 Cartographer is a Bitcoin peer to peer network crawler and seed server.
 
+*[Download Cartographer](https://github.com/mikehearn/httpseed/releases)*
+
 Like all peer to peer networks, Bitcoin requires hard coded starting points (sometimes called directories) that can be used to
 find some initial peers to connect to. Currently Bitcoin nodes and wallets use DNS lookups for this purpose. DNS is
 simple but increasingly inadequate for our needs:
@@ -21,7 +23,8 @@ This application is a Bitcoin P2P network crawler and server with the following 
 
 * Can serve seed data using gzipped, digitally signed protocol buffers over HTTP. This fixes authentication,
   auditability, malware false positives and extensibility. The signature uses secp256k1.
-* Can additionally serve data in JSON, XML and HTML formats for ease of use with other tools, like web browsers.
+* Can additionally serve data in JSON, XML, HTML and comma separated text formats for ease of use with other tools, like
+  web browsers and shell scripts.
 * Queries can be restricted using a service flags bit mask.
 * And for good measure, can also serve DNS queries too with a simple built in DNS server.
 * Crawl speed can be specified in terms of successful connects per second, rather than the crude number-of-threads
@@ -32,7 +35,7 @@ This application is a Bitcoin P2P network crawler and server with the following 
 There is support in bitcoinj git master (from 0.13-SNAPSHOT onwards) for using the protobuf based protocol.
 
 The code is written in Kotlin (sort of like a smaller, simpler Scala), so it's concise and easy to hack. Despite the
-large number of features it comes to only about 570 lines of code.
+large number of features it comes to only about 670 lines of code.
 
 Usage
 =====
