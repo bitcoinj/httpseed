@@ -15,7 +15,7 @@ public class BitcoinHTTPSeed {
         platformStatic
         fun main(args: Array<String>) {
             val parser = OptionParser()
-            val netArg = parser.accepts("net").withRequiredArg().defaultsTo("test")
+            val netArg = parser.accepts("net").withRequiredArg().defaultsTo("main")
             val dirArg = parser.accepts("dir").withRequiredArg()
             val httpPort = parser.accepts("http-port").withRequiredArg().defaultsTo("8080")
             val dnsPort = parser.accepts("dns-port").withRequiredArg().defaultsTo("2053")
