@@ -32,7 +32,7 @@
                             <mainClass>net.plan99.bitcoin.cartographer.BitcoinHTTPSeed</mainClass>
                         </transformer>
                     </transformers>
-                    <outputFile>target/httpseed.jar</outputFile>
+                    <outputFile>target/cartographer.jar</outputFile>
                 </configuration>
                 <executions>
                     <execution>
