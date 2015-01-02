@@ -8,7 +8,6 @@ import org.bitcoinj.utils.Threading
 import org.mapdb.DBMaker
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.nio.file.*
 import java.util.concurrent.*
 import java.util.*
 import java.io.Serializable
@@ -16,6 +15,7 @@ import java.time.*
 import java.net.InetSocketAddress
 import net.jcip.annotations.GuardedBy
 import com.google.common.io.BaseEncoding
+import java.nio.file.Path
 
 enum class PeerStatus {
     UNTESTED
@@ -66,16 +66,18 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         populateOKPeers()    // Load from DB
         scheduleRecrawlsFromDB()
 
-        verMsg.appendToSubVer("Cartographer", "1.0", null)
+        val VERSION = "1.1"
+        val PRODUCT_NAME = "Cartographer"
+
+        verMsg.appendToSubVer(PRODUCT_NAME, VERSION, hostname)
 
         // We use the low level networking API to crawl, because PeerGroup does things like backoff/retry/etc which we don't want.
         ccm.startAsync().awaitRunning()
 
         // We use a regular WAK setup to learn about the state of the network but not to crawl it.
-        kit.setUserAgent("Cartographer", "1.0")
-        // kit.setPeerNodes(PeerAddress(InetSocketAddress("vinumeris.com", params.getPort())))
         log.info("Waiting for block chain headers to sync ...")
         kit.startAsync().awaitRunning()
+        kit.peerGroup().setUserAgent(PRODUCT_NAME, VERSION, hostname)
         log.info("Chain synced, querying initial addresses")
         val peer = kit.peerGroup().waitForPeers(1).get()[0]
 
