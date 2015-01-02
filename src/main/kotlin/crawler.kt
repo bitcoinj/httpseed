@@ -55,7 +55,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
     // Rate limiting
     private var openConnections = 0
     private val maxConnections = 1023
-    private val addressQueue = LinkedBlockingQueue<InetSocketAddress>()
+    private val addressQueue = HashSet<InetSocketAddress>()
 
     // Recrawl thread
     private val recrawlExecutor = ScheduledThreadPoolExecutor(1)
@@ -84,9 +84,9 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             override fun onPreMessageReceived(peer: Peer, m: Message): Message {
                 if (m is AddressMessage) {
                     Threading.USER_THREAD execute {
-                        val fresh = m.getAddresses() filterNot { addrMap containsKey it.getSocketAddress() }
+                        val fresh = m.getAddresses() filterNot { addrMap.containsKey(it.getSocketAddress()) or addressQueue.contains(it.getSocketAddress()) }
                         if (fresh.isNotEmpty()) {
-                            log.info("Got ${fresh.size()} new address(es) from ${peer}: ${fresh}")
+                            log.info("Got ${fresh.size()} new address(es) from ${peer}" + if (fresh.size() < 10) ": " + fresh.joinToString(",") else "")
                             queueAddrs(m)
                             crawl()
                         }
@@ -111,8 +111,9 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
 
     fun crawl() {
         while (openConnections < maxConnections) {
-            val p = addressQueue.poll()
+            val p = addressQueue.firstOrNull()
             if (p == null) break
+            addressQueue.remove(p)
             // Some addr messages have bogus port values in them; ignore.
             if (p.getPort() == 0) continue
 
