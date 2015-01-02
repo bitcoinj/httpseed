@@ -61,7 +61,8 @@ Most flags are self explanatory. A few that aren't:
   out for CPU spinning (i.e. it's constantly garbage collecting) if you set it too low.
 * `--hostname`: This should be the hostname of the box that is running the crawler. It will be resolved and used to
   substitute for a localhost IP if one is found, to avoid problems with machines that report their hostname wrong.
-* `--dns-hostname` (optional): This name will be reported for _any_ DNS query made to the given DNS port via UDP. It
+  It will also be put into the version message sent by the crawler so people know who to contact if there's a problem.
+* `--dns-hostname` (optional): This is the name that the DNS server will respond to (via UDP only). It
   should be set to whatever hostname you have allocated for DNS if you have chosen to do so.
 * `--crawls-per-sec`: Max connects per second to do. If this is set too high then you might not be able to crawl
   the full network because you'll max out your CPU or bandwidth and you will end up with initial connections timing
