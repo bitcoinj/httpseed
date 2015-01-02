@@ -9,6 +9,7 @@ import javax.management.ObjectName
 import joptsimple.OptionParser
 import kotlin.platform.platformStatic
 import org.xbill.DNS.Name
+import joptsimple.OptionException
 
 public class BitcoinHTTPSeed {
     class object {
@@ -16,26 +17,29 @@ public class BitcoinHTTPSeed {
         fun main(args: Array<String>) {
             val parser = OptionParser()
             val netArg = parser.accepts("net").withRequiredArg().defaultsTo("main")
-            val dirArg = parser.accepts("dir").withRequiredArg()
+            val dirArg = parser.accepts("dir").withRequiredArg().required()
             val httpPort = parser.accepts("http-port").withRequiredArg().defaultsTo("8080")
             val dnsPort = parser.accepts("dns-port").withRequiredArg().defaultsTo("2053")
-            val hostname = parser.accepts("hostname").withRequiredArg()
+            val hostname = parser.accepts("hostname").withRequiredArg().required()
             val dnsname = parser.accepts("dnsname").withRequiredArg()
             val logToConsole = parser.accepts("log-to-console")
             val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(15)
+            val help = parser.accepts("help").forHelp()
 
-            val options = parser.parse(*args)
-
-            if (!options.has(dirArg)) {
-                println("You must specify a working directory with --dir=/path/to/directory")
+            val options = try {
+                parser.parse(*args)
+            } catch (e: OptionException) {
+                println(e.getMessage())
+                parser.printHelpOn(System.out)
                 return
             }
-            if (!options.has(hostname)) {
-                println("You must specify the public --hostname of this machine.")
+
+            if (options.has(help)) {
+                parser.printHelpOn(System.out)
                 return
             }
+
             val dir = Paths.get(options.valueOf(dirArg))
-
             val params = NetworkParameters.fromPmtProtocolID(options.valueOf(netArg))
 
             setupLogging(dir, options.has(logToConsole))
