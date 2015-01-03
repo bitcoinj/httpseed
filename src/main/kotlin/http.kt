@@ -44,7 +44,6 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
     }
 
     fun process(exchange: HttpExchange) {
-        // Forbid everything except GET
         if (exchange.getRequestMethod() != "GET") {
             exchange.sendResponseHeaders(HttpURLConnection.HTTP_BAD_METHOD, -1)
             exchange.close()
@@ -67,21 +66,23 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
                 .setNet(netName)
                 .build()
 
+        val noCache = params.containsKey("nocache")
+
         val path = exchange.getRequestURI().getPath()
         when {
-            path.endsWith(".html") -> respond(exchange, protoToHTML(msg), "text/html; charset=UTF-8")
-            path.endsWith(".json") -> respond(exchange, protoToJSON(msg), "application/json")
-            path.endsWith(".xml") ->  respond(exchange, protoToXML(msg), "text/xml")
-            path.endsWith(".txt") ->  respond(exchange, protoToText(msg), "text/plain")
+            path.endsWith(".html") -> respond(exchange, protoToHTML(msg), "text/html; charset=UTF-8", noCache)
+            path.endsWith(".json") -> respond(exchange, protoToJSON(msg), "application/json", noCache)
+            path.endsWith(".xml") ->  respond(exchange, protoToXML(msg), "text/xml", noCache)
+            path.endsWith(".txt") ->  respond(exchange, protoToText(msg), "text/plain", noCache)
 
             // Default format is signed protobuf
-            else -> respond(exchange, signSerializeAndCompress(msg), "application/octet-stream")
+            else -> respond(exchange, signSerializeAndCompress(msg), "application/octet-stream", noCache)
         }
     }
 
     fun protoToHTML(msg: PeerSeedProtos.PeerSeeds) = HtmlFormat.printToString(msg).toByteArray()
     fun protoToJSON(msg: PeerSeedProtos.PeerSeeds) = JsonFormat.printToString(msg).toByteArray()
-    fun protoToXML(msg: PeerSeedProtos.PeerSeeds) = XmlFormat.printToString(msg).toByteArray()
+    fun protoToXML(msg: PeerSeedProtos.PeerSeeds)  = XmlFormat.printToString(msg).toByteArray()
     fun protoToText(msg: PeerSeedProtos.PeerSeeds) = msg.getSeedList().map { it.getIpAddress() }.joinToString(",").toByteArray()
 
     fun dataToProto(data: Pair<InetSocketAddress, PeerData>): PeerSeedProtos.PeerSeedData {
@@ -105,8 +106,14 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
         return baos.toByteArray()
     }
 
-    fun respond(exchange: HttpExchange, bits: ByteArray, mimeType: String) {
-        exchange.getResponseHeaders().add("Content-Type", mimeType);
+    fun respond(exchange: HttpExchange, bits: ByteArray, mimeType: String, noCache: Boolean) {
+        exchange.getResponseHeaders().add("Content-Type", mimeType)
+        if (!noCache) {
+            // Allow ISPs and so on to cache results: less bandwidth usage, more privacy -> it's a win. The signatures
+            // on protobuf versions should prevent caches from tampering with the data. We can bump up the cache time in
+            // future once the debugging/testing phase is over.
+            exchange.getResponseHeaders().add("Cache-Control", "no-transform,public,max-age=90")
+        }
         exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
         exchange.getResponseBody().write(bits)
         exchange.close()
