@@ -252,7 +252,10 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
                 // more sophisticated and randomized tests possible, but currently we only check for mistakes and
                 // not deliberately malicious peers that try to cheat this check.
                 txhash = Sha256Hash("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098")
-                outcheck = { it.getValue() == Coin.FIFTY_COINS && it.getScriptPubKey().isSentToRawPubKey() && it.getScriptPubKey().getChunks()[0].data == BaseEncoding.base16().decode("0496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858ee".toUpperCase()) }
+                val pubkey = "0496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858ee"
+                outcheck = { it.getValue() == Coin.FIFTY_COINS && it.getScriptPubKey().isSentToRawPubKey() &&
+                             // KT-6587 means we cannot use == as you would expect here.
+                             Arrays.equals(it.getScriptPubKey().getChunks()[0].data, BaseEncoding.base16().decode(pubkey.toUpperCase())) }
                 height = 1
             }
 
