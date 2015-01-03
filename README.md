@@ -57,8 +57,8 @@ java -Xmx300m
 
 Most flags are self explanatory. A few that aren't:
 
-* `-Xmx300m`: Here we are allocating a max of 300mb of RAM, which should be plenty. You can set it to less but watch
-  out for CPU spinning (i.e. it's constantly garbage collecting) if you set it too low.
+* `-Xmx300m`: Here we are allocating a max of 300mb of RAM, which is plenty (real requirements are more like 100mb max).
+  You can set it to less but watch out for CPU spinning (i.e. it's constantly garbage collecting) if you set it too low.
 * `--hostname`: This should be the hostname of the box that is running the crawler. It will be resolved and used to
   substitute for a localhost IP if one is found, to avoid problems with machines that report their hostname wrong.
   It will also be put into the version message sent by the crawler so people know who to contact if there's a problem.
