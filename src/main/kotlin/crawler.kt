@@ -125,7 +125,7 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
             var doConnect = if (data == null) {
                 // Not seen this address before and not already probing it
                 addrMap[p] = PeerData(PeerStatus.UNTESTED, 0, Instant.now())
-                console.numKnownAddresses = addrMap.size()
+                console.numKnownAddresses++
                 db.commit()
                 true
             } else {
@@ -141,7 +141,6 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
         val cur = addrMap[addr]!!
         val newData = cur.copy(status = status, lastCrawlTime = Instant.now())
         addrMap[addr] = newData
-        console.numKnownAddresses = addrMap.size()
         db.commit()
         synchronized(this) {
             okPeers.remove(addr)
@@ -162,7 +161,8 @@ class Crawler(private val console: Console, private val workingDir: Path, privat
                 lastSuccessTime = Instant.now()
         )
         addrMap[addr] = newData
-        console.numKnownAddresses = addrMap.size()
+        if (peerData == null)
+            console.numKnownAddresses++
         db.commit()
 
         // We might have recrawled an OK peer if forced via JMX.
