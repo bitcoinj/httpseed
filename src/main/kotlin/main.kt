@@ -47,7 +47,7 @@ public class BitcoinHTTPSeed {
             val console = setupJMX()
             console.allowedConnectsPerSec = options.valueOf(crawlsPerSec)
             val crawler = Crawler(console, dir, params, options.valueOf(hostname))
-            HTTPServer(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
+            HttpSeed(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
             if (options.has(dnsname)) {
                 val s = options.valueOf(dnsname)
                 DnsServer(Name(if (s.endsWith('.')) s else s + '.'), options.valueOf(dnsPort).toInt(), crawler).start()

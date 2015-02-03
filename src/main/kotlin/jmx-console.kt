@@ -3,19 +3,20 @@ package net.plan99.bitcoin.cartographer
 import com.google.common.collect.Multisets
 import com.google.common.collect.HashMultiset
 import com.google.common.util.concurrent.RateLimiter
-import com.google.common.net.HostAndPort
 import org.bitcoinj.core.VersionMessage
 import java.util.ArrayList
-import java.net.InetSocketAddress
 import javax.management.MXBean
 
 [MXBean]
 public trait ConsoleMXBean {
-    public fun getConnectAttempts(): Int
     public fun getTopUserAgents(): List<String>
     public fun getTotalPauseTimeSecs(): Double
+
     public val numKnownAddresses: Int
     public val numOKPeers: Int
+    public val numConnectFailures: Int
+    public val numPendingAddrs: Int
+    public val numConnectAttempts: Int
 
     public var allowedConnectsPerSec: Int
     public var recrawlMinutes: Long
@@ -26,7 +27,6 @@ public trait ConsoleMXBean {
 
 class Console : ConsoleMXBean {
     private val userAgents: HashMultiset<String> = HashMultiset.create()
-    private var connects: Int = 0
     private var totalPauseTimeSecs = 0.0
 
     public var crawler: Crawler? = null
@@ -46,6 +46,15 @@ class Console : ConsoleMXBean {
         [synchronized] get
         [synchronized] set
 
+    override var numPendingAddrs: Int = 0
+        [synchronized] get
+        [synchronized] set
+
+    override var numConnectFailures: Int = 0
+        [synchronized] get
+    override var numConnectAttempts: Int = 0
+        [synchronized] get
+
     synchronized public fun record(ver: VersionMessage) {
         userAgents.add(ver.subVer)
     }
@@ -54,8 +63,8 @@ class Console : ConsoleMXBean {
             Multisets.copyHighestCountFirst(userAgents).entrySet().map { "${it.getCount()}  ${it.getElement()}" }
     ).take(10)
 
-    synchronized public fun recordConnectAttempt(): Int = connects++
-    synchronized override fun getConnectAttempts() = connects
+    synchronized public fun recordConnectAttempt(): Int = numConnectAttempts++
+    synchronized public fun recordConnectFailure(): Int = numConnectFailures++
 
     synchronized fun recordPauseTime(pauseTimeSecs: Double) {
         totalPauseTimeSecs += pauseTimeSecs
@@ -70,15 +79,8 @@ class Console : ConsoleMXBean {
         [synchronized] public set
 
     override fun queueCrawl(ip: String) {
-        val sockaddr = parseIp(ip)
-        crawler!!.attemptConnect(sockaddr)
+        crawler!!.attemptConnect(parseIPAndPort(ip))
     }
 
-    override fun queryStatus(ip: String): String = crawler!!.addrMap.get(parseIp(ip))?.status?.toString() ?: "Unknown"
-
-    private fun parseIp(ip: String): InetSocketAddress {
-        val hostAndPort = HostAndPort.fromString(ip)
-        val sockaddr = InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort())
-        return sockaddr
-    }
+    override fun queryStatus(ip: String): String = crawler!!.addrMap[parseIPAndPort(ip)]?.status?.toString() ?: "Unknown"
 }

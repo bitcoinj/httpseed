@@ -13,7 +13,7 @@ import org.bitcoinj.core.*
 import org.slf4j.LoggerFactory
 import org.bitcoin.crawler.PeerSeedProtos
 
-class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
+class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
     private val log = LoggerFactory.getLogger("cartographer.http")
     private val server: HttpServer
     private val privkey: ECKey
@@ -29,27 +29,48 @@ class HTTPServer(port: Int, baseUrlPath: String, privkeyPath: Path, private val 
             log.info("Using public key: ${privkey.getPublicKeyAsHex()}")
         }
         server = HttpServer.create(InetSocketAddress(port), 0)
-        server.createContext("${baseUrlPath}/peers", object : HttpHandler {
+        serve("GET", "$baseUrlPath/peers", ::handlePeersRequest)
+        serve("GET", "$baseUrlPath/lookup", ::handleLookupRequest)
+        server.start()
+    }
+
+    class BadRequestException : Exception()
+
+    private fun serve(method: String, path: String, handler: HttpSeed.(HttpExchange) -> Unit) {
+        server.createContext(path, object : HttpHandler {
             override fun handle(exchange: HttpExchange) {
                 try {
-                    process(exchange)
+                    if (exchange.getRequestMethod() != method) {
+                        exchange.sendResponseHeaders(HttpURLConnection.HTTP_BAD_METHOD, -1)
+                        exchange.close()
+                        return
+                    }
+                    handler(exchange)
+                } catch (e: BadRequestException) {
+                    exchange.sendResponseHeaders(HttpURLConnection.HTTP_BAD_REQUEST, -1)
+                    exchange.close()
                 } catch (e: Throwable) {
                     e.printStackTrace()
-                    exchange.sendResponseHeaders(500, -1)
+                    exchange.sendResponseHeaders(HttpURLConnection.HTTP_INTERNAL_ERROR, -1)
                     exchange.close()
                 }
             }
         })
-        server.start()
     }
 
-    fun process(exchange: HttpExchange) {
-        if (exchange.getRequestMethod() != "GET") {
-            exchange.sendResponseHeaders(HttpURLConnection.HTTP_BAD_METHOD, -1)
-            exchange.close()
-            return
-        }
+    // Diagnostic query for status of individual peer.
+    private fun handleLookupRequest(exchange: HttpExchange) {
+        val query: String = exchange.getRequestURI().getQuery() ?: throw BadRequestException()
+        val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.getPort())
+        val response = crawler.addrMap[ip]?.toString() ?: "Unknown"
+        val bits = response.toByteArray()
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
+        exchange.getResponseBody().write(bits)
+        exchange.close()
+    }
 
+    // The main seed query.
+    private fun handlePeersRequest(exchange: HttpExchange) {
         val query: String? = exchange.getRequestURI().getQuery()
         val params: Map<String, String> = if (query != null) Splitter.on('&').trimResults().withKeyValueSeparator("=").split(query) else mapOf()
         val serviceMask = params.get("srvmask")?.toLong()?.and(0xFFFFFF)

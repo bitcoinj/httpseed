@@ -5,6 +5,19 @@ import org.bitcoinj.utils.Threading
 import com.google.protobuf.ByteString
 import java.util.ArrayList
 import java.util.Collections
+import java.net.InetSocketAddress
+import com.google.common.net.HostAndPort
+import com.sun.net.httpserver.HttpServer
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpHandler
+import sun.net.www.protocol.http.HttpURLConnection
+
+
+fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
+    val hostAndPort = HostAndPort.fromString(ipAndPort.trim())
+    val sockaddr = InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort())
+    return sockaddr
+}
 
 fun <T> ListenableFuture<T>.later(action: (T) -> Unit) {
     Futures.addCallback(this, object : FutureCallback<T> {
