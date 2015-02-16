@@ -52,7 +52,7 @@ public inline fun Int.gatherTimes<T>(body : () -> T): List<T> {
     return result
 }
 
-public fun <T> ArrayList<T>.shuffle(): ArrayList<T> {
+public fun <T> List<T>.shuffle(): ArrayList<T> {
     val copy = ArrayList(this)
     Collections.shuffle(copy)
     return copy

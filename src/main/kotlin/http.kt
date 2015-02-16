@@ -12,6 +12,7 @@ import java.util.zip.GZIPOutputStream
 import org.bitcoinj.core.*
 import org.slf4j.LoggerFactory
 import org.bitcoin.crawler.PeerSeedProtos
+import org.bitcoinj.utils.Threading
 
 class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
     private val log = LoggerFactory.getLogger("cartographer.http")
@@ -31,6 +32,8 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
         server = HttpServer.create(InetSocketAddress(port), 0)
         serve("GET", "$baseUrlPath/peers", ::handlePeersRequest)
         serve("GET", "$baseUrlPath/lookup", ::handleLookupRequest)
+        serve("GET", "$baseUrlPath/recrawls", ::handleRecrawlsRequest)
+        serve("GET", "$baseUrlPath/force", ::handleForceRequest)
         server.start()
     }
 
@@ -58,6 +61,19 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
         })
     }
 
+    private fun handleRecrawlsRequest(exchange: HttpExchange) {
+        exchange.getResponseHeaders().add("Content-Type", "text/plain")
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0)
+        exchange.getResponseBody().writer().use {
+            var i = 0
+            for (pending in crawler.snapshotRecrawlQueue()) {
+                it.write("$pending\n")
+                i++
+            }
+        }
+        exchange.close()
+    }
+
     // Diagnostic query for status of individual peer.
     private fun handleLookupRequest(exchange: HttpExchange) {
         val query: String = exchange.getRequestURI().getQuery() ?: throw BadRequestException()
@@ -66,6 +82,17 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
         val bits = response.toByteArray()
         exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
         exchange.getResponseBody().write(bits)
+        exchange.close()
+    }
+
+    private fun handleForceRequest(exchange: HttpExchange) {
+        val query: String = exchange.getRequestURI().getQuery() ?: throw BadRequestException()
+        val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.getPort())
+        log.info("Forcing recrawl for $ip")
+        Threading.USER_THREAD.execute() {
+            crawler.attemptConnect(ip)
+        }
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, -1)
         exchange.close()
     }
 

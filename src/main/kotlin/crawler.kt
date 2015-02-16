@@ -29,15 +29,16 @@ enum class PeerStatus {
 data class PeerData(val status: PeerStatus, val serviceBits: Long, val lastCrawlTime: Instant, val lastSuccessTime: Instant? = null, val supportsGetUTXO: Boolean = false) : Serializable {
     fun isTimeToRecrawl(recrawlMinutes: Long): Boolean {
         val ago = Instant.now().minusSeconds(recrawlMinutes * 60)
-        val before = this.lastCrawlTime.isBefore(ago)
-        return before
+        return this.lastCrawlTime.isBefore(ago)
     }
 
     // We recrawl nodes that are currently up to check they're still alive, or nodes which *were* up within the last day
     // but have disappeared to see if they come back, or nodes that were behind when we last checked them.
-    fun shouldRecrawl() = status == PeerStatus.OK || status == PeerStatus.BEHIND ||
-                            (status == PeerStatus.UNREACHABLE &&
-                             lastSuccessTime != null && lastSuccessTime isAfter Instant.now() - Duration.ofDays(1))
+    fun shouldRecrawl() = when (status) {
+        PeerStatus.OK, PeerStatus.BEHIND, PeerStatus.UNTESTED -> true
+        PeerStatus.UNREACHABLE -> lastSuccessTime != null && lastSuccessTime isAfter Instant.now() - Duration.ofDays(1)
+        else -> false
+    }
 }
 
 // Crawler engine
@@ -70,24 +71,28 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         private val creationTime = nowSeconds()
 
         override fun compareTo(other: Delayed?): Int = creationTime.compareTo((other as PendingRecrawl).creationTime)
-
         override fun getDelay(unit: TimeUnit): Long =
-            TimeUnit.SECONDS.convert(creationTime + (console.recrawlMinutes * 60) - nowSeconds(), unit)
+            unit.convert(creationTime + (console.recrawlMinutes * 60) - nowSeconds(), TimeUnit.SECONDS)
+
+        fun delayAsString() = Duration.ofSeconds(getDelay(TimeUnit.SECONDS)).toString().substring(2).replace("M", " minutes ").replace("S", " seconds")
+        override fun toString() = "${addr.toString().substring(1)} in ${delayAsString()}"
     }
     private val recrawlQueue = DelayQueue<PendingRecrawl>()
+
+    public fun snapshotRecrawlQueue(): Iterator<PendingRecrawl> = recrawlQueue.iterator()   // Snapshots internally
 
     public fun start() {
         console.crawler = this
 
-        populateOKPeers()    // Load from DB
-        scheduleRecrawlsFromDB()
+        loadFromDB()
 
-        val VERSION = "1.1"
+        val VERSION = "1.2"
         val PRODUCT_NAME = "Cartographer"
 
         verMsg.appendToSubVer(PRODUCT_NAME, VERSION, hostname)
 
         // We use the low level networking API to crawl, because PeerGroup does things like backoff/retry/etc which we don't want.
+        log.info("Starting crawl network manager")
         ccm.startAsync().awaitRunning()
 
         // We use a regular WAK setup to learn about the state of the network but not to crawl it.
@@ -136,19 +141,20 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     fun crawl() {
         while (openConnections < maxConnections) {
-            val p: LightweightAddress? = addressQueue.firstOrNull()
-            if (p == null) break
-            addressQueue.remove(p)
+            val lightAddr: LightweightAddress? = addressQueue.firstOrNull()
+            if (lightAddr == null) break
+            addressQueue.remove(lightAddr)
             console.numPendingAddrs = addressQueue.size()
             // Some addr messages have bogus port values in them; ignore.
-            if (p.port == 0.toShort()) continue
+            if (lightAddr.port == 0.toShort()) continue
 
-            if (connecting.contains(p)) continue
+            val addr = lightAddr.toInetSocketAddress()
+            if (connecting.contains(addr)) continue
 
-            val data = addrMap[p]
+            val data = addrMap[addr]
             var doConnect = if (data == null) {
                 // Not seen this address before and not already probing it
-                addrMap[p.toInetSocketAddress()] = PeerData(PeerStatus.UNTESTED, 0, Instant.now())
+                addrMap[addr] = PeerData(PeerStatus.UNTESTED, 0, Instant.now())
                 console.numKnownAddresses++
                 db.commit()
                 true
@@ -157,14 +163,13 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             }
 
             if (doConnect)
-                attemptConnect(p.toInetSocketAddress())
+                attemptConnect(addr)
         }
     }
 
     private fun markAs(addr: InetSocketAddress, status: PeerStatus): PeerStatus {
         val cur = addrMap[addr]!!
-        val newData = cur.copy(status = status, lastCrawlTime = Instant.now())
-        addrMap[addr] = newData
+        addrMap[addr] = cur.copy(status = status, lastCrawlTime = Instant.now())
         db.commit()
         synchronized(this) {
             okPeers.remove(addr)
@@ -195,7 +200,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 okPeers.add(addr)
                 console.numOKPeers = okPeers.size()
             }
-            scheduleRecrawl(addr)
         }
     }
 
@@ -235,7 +239,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             if (it.getAddress().isAnyLocalAddress() || it.getAddress().isLoopbackAddress()) {
                 val rs = InetSocketAddress(hostname, it.getPort())
                 log.info("Replacing $it with $rs")
-                rs.toLightweight()
+                    rs.toLightweight()
             } else {
                 it.toLightweight()
             }
@@ -254,6 +258,8 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         } else {
             markAsOK(sockaddr, peer)
         }
+        // Check up on it again in future to make sure it's still OK/has become OK.
+        scheduleRecrawl(sockaddr)
         peer.getAddr() later { addr ->
             queueAddrs(addr)
 
@@ -326,9 +332,17 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         return addrs.map { it to addrMap[it]!! }
     }
 
-    synchronized private fun populateOKPeers() {
+    synchronized private fun loadFromDB() {
         // Shuffle the peers because otherwise MapDB can give them back with very close IP ordering.
-        okPeers addAll addrMap.filter { it.getValue().status == PeerStatus.OK }.map { it.getKey() }.toArrayList().shuffle()
+        val tmp: MutableList<InetSocketAddress> = arrayListOf()
+        for ((addr, data) in addrMap) {
+            if (data.status == PeerStatus.OK)
+                tmp.add(addr)
+            if (data.shouldRecrawl())
+                scheduleRecrawl(addr)
+        }
+        Collections.shuffle(tmp)
+        okPeers addAll tmp
         log.info("We have ${addrMap.size()} IP addresses in our database of which ${okPeers.size()} are considered OK")
         console.numOKPeers = okPeers.size()
         console.numKnownAddresses = addrMap.size()
@@ -336,11 +350,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     private fun scheduleRecrawl(addr: InetSocketAddress) {
         recrawlQueue.add(PendingRecrawl(addr))
-    }
-
-    private fun scheduleRecrawlsFromDB() {
-        // Recrawl peers in the db that are either considered OK, or have disappeared recently
-        addrMap filter { it.getValue().shouldRecrawl() } map { it.getKey() } forEach { scheduleRecrawl(it) }
     }
 
     private fun queueAndCrawl(addr: InetSocketAddress) {
