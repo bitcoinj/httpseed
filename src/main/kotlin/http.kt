@@ -19,7 +19,7 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
     private val server: HttpServer
     private val privkey: ECKey
 
-    {
+    init {
         if (!Files.exists(privkeyPath)) {
             privkey = ECKey()
             Files.write(privkeyPath, (privkey.getPrivateKeyAsHex() + "\n").toByteArray())
@@ -146,7 +146,7 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
         val bits = msg.toByteString()
         wrapper.setPeerSeeds(bits)
         wrapper.setPubkey(privkey.getPubKey().toByteString())
-        wrapper.setSignature(privkey.sign(Sha256Hash.create(bits.toByteArray())).encodeToDER().toByteString())
+        wrapper.setSignature(privkey.sign(Sha256Hash.hash(bits.toByteArray())).encodeToDER().toByteString())
         val baos = ByteArrayOutputStream()
         val zip = GZIPOutputStream(baos)
         wrapper.build().writeDelimitedTo(zip)

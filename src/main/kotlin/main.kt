@@ -12,7 +12,7 @@ import org.xbill.DNS.Name
 import joptsimple.OptionException
 
 public class BitcoinHTTPSeed {
-    class object {
+    companion object {
         platformStatic
         fun main(args: Array<String>) {
             val parser = OptionParser()

@@ -7,8 +7,8 @@ import org.bitcoinj.core.VersionMessage
 import java.util.ArrayList
 import javax.management.MXBean
 
-[MXBean]
-public trait ConsoleMXBean {
+@MXBean
+public interface ConsoleMXBean {
     public fun getTopUserAgents(): List<String>
     public fun getTotalPauseTimeSecs(): Double
 
@@ -32,28 +32,28 @@ class Console : ConsoleMXBean {
     public var crawler: Crawler? = null
 
     var connectsRateLimiter: RateLimiter = RateLimiter.create(15.0)
-        [synchronized] get
-        [synchronized] private set
+        @synchronized get
+        @synchronized private set
 
     // Allow JMX consoles to modify the rate limit on the fly
     override var allowedConnectsPerSec: Int
-        [synchronized] get() = connectsRateLimiter.getRate().toInt()
-        [synchronized] set(value) {
+        @synchronized get() = connectsRateLimiter.getRate().toInt()
+        @synchronized set(value) {
             connectsRateLimiter = RateLimiter.create(value.toDouble())
         }
 
     override var recrawlMinutes = 30L
-        [synchronized] get
-        [synchronized] set
+        @synchronized get
+        @synchronized set
 
     override var numPendingAddrs: Int = 0
-        [synchronized] get
-        [synchronized] set
+        @synchronized get
+        @synchronized set
 
     override var numConnectFailures: Int = 0
-        [synchronized] get
+        @synchronized get
     override var numConnectAttempts: Int = 0
-        [synchronized] get
+        @synchronized get
 
     synchronized public fun record(ver: VersionMessage) {
         userAgents.add(ver.subVer)
@@ -72,11 +72,11 @@ class Console : ConsoleMXBean {
     synchronized override fun getTotalPauseTimeSecs(): Double = totalPauseTimeSecs
 
     override var numKnownAddresses: Int = 0
-        [synchronized] get
-        [synchronized] public set
+        @synchronized get
+        @synchronized public set
     override var numOKPeers: Int = 0
-        [synchronized] get
-        [synchronized] public set
+        @synchronized get
+        @synchronized public set
 
     override fun queueCrawl(ip: String) {
         crawler!!.attemptConnect(parseIPAndPort(ip))

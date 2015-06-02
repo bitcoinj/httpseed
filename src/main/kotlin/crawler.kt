@@ -20,9 +20,9 @@ import kotlin.concurrent.thread
 import java.net.InetAddress
 
 enum class PeerStatus {
-    UNTESTED
-    UNREACHABLE
-    BEHIND   // Not caught up with the block chain
+    UNTESTED,
+    UNREACHABLE,
+    BEHIND, // Not caught up with the block chain
     OK
 }
 
@@ -60,7 +60,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     private val maxConnections = 200
     data class LightweightAddress(public val addr: ByteArray, public val port: Short) {
         fun toInetSocketAddress() = InetSocketAddress(InetAddress.getByAddress(addr), port.toInt())
-        fun toPeerAddress() = PeerAddress(InetAddress.getByAddress(addr), port.toInt())
     }
     fun InetSocketAddress.toLightweight() = LightweightAddress(this.getAddress().getAddress(), this.getPort().toShort())
     private val addressQueue = HashSet<LightweightAddress>()
