@@ -44,7 +44,7 @@ You will need a Java 8 runtime. Then [grab the JAR](https://github.com/mikehearn
 
 ```
 java -Xmx300m
-     -jar httpseed.jar
+     -jar cartographer.jar
      --dir=/path/to/a/working/directory
      --net={test,main}
      --http-port=8080
