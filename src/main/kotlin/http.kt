@@ -146,7 +146,7 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
         val bits = msg.toByteString()
         wrapper.setPeerSeeds(bits)
         wrapper.setPubkey(privkey.getPubKey().toByteString())
-        wrapper.setSignature(privkey.sign(Sha256Hash.hash(bits.toByteArray())).encodeToDER().toByteString())
+        wrapper.setSignature(privkey.sign(Sha256Hash.wrap(bits.toByteArray())).encodeToDER().toByteString())
         val baos = ByteArrayOutputStream()
         val zip = GZIPOutputStream(baos)
         wrapper.build().writeDelimitedTo(zip)

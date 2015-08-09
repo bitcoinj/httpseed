@@ -279,14 +279,14 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             var height = 0L
 
             if (params == TestNet3Params.get()) {
-                txhash = Sha256Hash("1c899ae8efd6bd460e517195dc34d2beeca9c5e76ff98af644cf6a28807f86cf")
+                txhash = Sha256Hash.wrap("1c899ae8efd6bd460e517195dc34d2beeca9c5e76ff98af644cf6a28807f86cf")
                 outcheck = { it.getValue() == Coin.parseCoin("0.00001") && it.getScriptPubKey().isSentToAddress() && it.getScriptPubKey().getToAddress(params).toString() == "mydzGfTrtHx8KnCRu43HfKwYyKjjSo6gUB" }
                 height = 314941
             } else if (params == MainNetParams.get()) {
                 // For now just assume Satoshi never spends the first block ever mined. There are much
                 // more sophisticated and randomized tests possible, but currently we only check for mistakes and
                 // not deliberately malicious peers that try to cheat this check.
-                txhash = Sha256Hash("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098")
+                txhash = Sha256Hash.wrap("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098")
                 val pubkey = "0496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858ee"
                 outcheck = { it.getValue() == Coin.FIFTY_COINS && it.getScriptPubKey().isSentToRawPubKey() &&
                              // KT-6587 means we cannot use == as you would expect here.

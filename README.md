@@ -32,7 +32,7 @@ This application is a Bitcoin P2P network crawler and server with the following 
 * Exports statistics and controls using JMX, so you can reconfigure it at runtime and view charts of things like
   connects/sec or CPU usage using any JMX console, like Mission Control.
 
-There is support in bitcoinj git master (from 0.13-SNAPSHOT onwards) for using the protobuf based protocol.
+There is support in bitcoinj git master (from 0.13 onwards) for using the protobuf based protocol.
 
 The code is written in Kotlin (sort of like a smaller, simpler Scala), so it's concise and easy to hack. Despite the
 large number of features it comes to only about 670 lines of code.
