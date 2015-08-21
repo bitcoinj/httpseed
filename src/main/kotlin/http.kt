@@ -29,7 +29,9 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
             privkey = ECKey.fromPrivate(BaseEncoding.base16().decode(str.toUpperCase()))
             log.info("Using public key: ${privkey.getPublicKeyAsHex()}")
         }
-        server = HttpServer.create(InetSocketAddress(port), 0)
+        val inetSocketAddress = InetSocketAddress(port)
+        log.info("Binding HTTP server to ${inetSocketAddress}, context path is ${if (baseUrlPath.isEmpty()) "/" else baseUrlPath}")
+        server = HttpServer.create(inetSocketAddress, 0)
         serve("GET", "$baseUrlPath/peers", ::handlePeersRequest)
         serve("GET", "$baseUrlPath/lookup", ::handleLookupRequest)
         serve("GET", "$baseUrlPath/recrawls", ::handleRecrawlsRequest)
