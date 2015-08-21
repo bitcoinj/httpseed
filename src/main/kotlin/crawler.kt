@@ -15,9 +15,11 @@ import org.threeten.bp.*
 import java.net.InetSocketAddress
 import net.jcip.annotations.GuardedBy
 import com.google.common.io.BaseEncoding
+import com.google.common.primitives.UnsignedBytes
 import java.nio.file.Path
 import kotlin.concurrent.thread
 import java.net.InetAddress
+import java.net.Inet4Address
 
 enum class PeerStatus {
     UNTESTED,
@@ -228,7 +230,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     }
 
     private fun queueAddrs(addr: AddressMessage) {
-        queueAddrs(addr.getAddresses() map { it.toSocketAddress() })
+        queueAddrs(addr.getAddresses() filter { isPeerAddressRoutable(it) } map { it.toSocketAddress() })
     }
 
     private fun queueAddrs(sockaddrs: List<InetSocketAddress>) {
@@ -244,6 +246,16 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             }
         })
         console.numPendingAddrs = addressQueue.size()
+    }
+
+    private fun isPeerAddressRoutable(peerAddress: PeerAddress): Boolean {
+        val address = peerAddress.getAddr()
+        if (address is Inet4Address) {
+            val a0 = UnsignedBytes.toInt(address.getAddress()[0])
+            if (a0 >= 240) // Reserved for future use
+                return false
+        }
+        return true
     }
 
     private fun onConnect(sockaddr: InetSocketAddress, peer: Peer) {
