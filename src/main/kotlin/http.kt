@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import org.bitcoin.crawler.PeerSeedProtos
 import org.bitcoinj.utils.Threading
 
-class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
+class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
     private val log = LoggerFactory.getLogger("cartographer.http")
     private val server: HttpServer
     private val privkey: ECKey
@@ -29,7 +29,7 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
             privkey = ECKey.fromPrivate(BaseEncoding.base16().decode(str.toUpperCase()))
             log.info("Using public key: ${privkey.getPublicKeyAsHex()}")
         }
-        val inetSocketAddress = InetSocketAddress(port)
+        val inetSocketAddress = InetSocketAddress(address, port)
         log.info("Binding HTTP server to ${inetSocketAddress}, context path is ${if (baseUrlPath.isEmpty()) "/" else baseUrlPath}")
         server = HttpServer.create(inetSocketAddress, 0)
         serve("GET", "$baseUrlPath/peers", ::handlePeersRequest)

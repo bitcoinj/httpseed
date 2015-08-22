@@ -1,5 +1,6 @@
 package net.plan99.bitcoin.cartographer
 
+import java.net.InetAddress
 import java.nio.file.*
 import java.util.logging.*
 import org.bitcoinj.utils.BriefLogFormatter
@@ -18,6 +19,7 @@ public class BitcoinHTTPSeed {
             val parser = OptionParser()
             val netArg = parser.accepts("net").withRequiredArg().defaultsTo("main")
             val dirArg = parser.accepts("dir").withRequiredArg().required()
+            val httpAddress = parser.accepts("http-address").withRequiredArg()
             val httpPort = parser.accepts("http-port").withRequiredArg().defaultsTo("8080")
             val dnsPort = parser.accepts("dns-port").withRequiredArg().defaultsTo("2053")
             val hostname = parser.accepts("hostname").withRequiredArg().required()
@@ -47,7 +49,8 @@ public class BitcoinHTTPSeed {
             val console = setupJMX()
             console.allowedConnectsPerSec = options.valueOf(crawlsPerSec)
             val crawler = Crawler(console, dir, params, options.valueOf(hostname))
-            HttpSeed(options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
+            HttpSeed(if (options.has(httpAddress)) InetAddress.getByName(options.valueOf(httpAddress)) else null,
+                options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
             if (options.has(dnsname)) {
                 val s = options.valueOf(dnsname)
                 DnsServer(Name(if (s.endsWith('.')) s else s + '.'), options.valueOf(dnsPort).toInt(), crawler).start()
