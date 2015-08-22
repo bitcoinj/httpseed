@@ -7,7 +7,7 @@ import com.google.common.io.BaseEncoding
 import java.net.*
 import java.nio.file.*
 import java.io.ByteArrayOutputStream
-import java.time.Instant
+import org.threeten.bp.Instant
 import java.util.zip.GZIPOutputStream
 import org.bitcoinj.core.*
 import org.slf4j.LoggerFactory
