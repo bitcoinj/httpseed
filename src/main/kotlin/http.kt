@@ -6,6 +6,7 @@ import com.google.common.base.Splitter
 import com.google.common.io.BaseEncoding
 import java.net.*
 import java.nio.file.*
+import java.nio.charset.StandardCharsets;
 import java.io.ByteArrayOutputStream
 import org.threeten.bp.Instant
 import java.util.zip.GZIPOutputStream
@@ -25,7 +26,7 @@ class HttpSeed(port: Int, baseUrlPath: String, privkeyPath: Path, private val cr
             Files.write(privkeyPath, (privkey.getPrivateKeyAsHex() + "\n").toByteArray())
             log.info("Created fresh private key, public is ${privkey.getPublicKeyAsHex()}")
         } else {
-            val str = Files.readAllLines(privkeyPath)[0].trim()
+            val str = Files.readAllLines(privkeyPath, StandardCharsets.UTF_8)[0].trim()
             privkey = ECKey.fromPrivate(BaseEncoding.base16().decode(str.toUpperCase()))
             log.info("Using public key: ${privkey.getPublicKeyAsHex()}")
         }
