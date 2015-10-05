@@ -8,13 +8,12 @@ import org.bitcoinj.core.NetworkParameters
 import java.lang.management.ManagementFactory
 import javax.management.ObjectName
 import joptsimple.OptionParser
-import kotlin.platform.platformStatic
 import org.xbill.DNS.Name
 import joptsimple.OptionException
 
 public class BitcoinHTTPSeed {
     companion object {
-        platformStatic
+        @JvmStatic
         fun main(args: Array<String>) {
             val parser = OptionParser()
             val netArg = parser.accepts("net").withRequiredArg().defaultsTo("main")
@@ -25,7 +24,7 @@ public class BitcoinHTTPSeed {
             val hostname = parser.accepts("hostname").withRequiredArg().required()
             val dnsname = parser.accepts("dnsname").withRequiredArg()
             val logToConsole = parser.accepts("log-to-console")
-            val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(javaClass<Int>()).defaultsTo(15)
+            val crawlsPerSec = parser.accepts("crawls-per-sec").withRequiredArg().ofType(Int::class.java).defaultsTo(15)
             val help = parser.accepts("help").forHelp()
 
             val options = try {
@@ -50,7 +49,7 @@ public class BitcoinHTTPSeed {
             console.allowedConnectsPerSec = options.valueOf(crawlsPerSec)
             val crawler = Crawler(console, dir, params, options.valueOf(hostname))
             HttpSeed(if (options.has(httpAddress)) InetAddress.getByName(options.valueOf(httpAddress)) else null,
-                options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.getPaymentProtocolId())
+                options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.paymentProtocolId)
             if (options.has(dnsname)) {
                 val s = options.valueOf(dnsname)
                 DnsServer(Name(if (s.endsWith('.')) s else s + '.'), options.valueOf(dnsPort).toInt(), crawler).start()
@@ -70,16 +69,16 @@ public class BitcoinHTTPSeed {
         private fun setupLogging(dir: Path, logToConsole: Boolean) {
             val logger = java.util.logging.Logger.getLogger("")
             val handler = FileHandler(dir.resolve("log.txt").toString(), true)
-            handler.setFormatter(BriefLogFormatter())
+            handler.formatter = BriefLogFormatter()
             logger.addHandler(handler)
             if (logToConsole) {
-                logger.getHandlers()[0].setFormatter(BriefLogFormatter())
+                logger.handlers[0].formatter = BriefLogFormatter()
             } else {
-                logger.removeHandler(logger.getHandlers()[0])
+                logger.removeHandler(logger.handlers[0])
             }
             loggerPin = logger
 
-            Logger.getLogger("org.bitcoinj").setLevel(Level.SEVERE)
+            Logger.getLogger("org.bitcoinj").level = Level.SEVERE
         }
     }
 }

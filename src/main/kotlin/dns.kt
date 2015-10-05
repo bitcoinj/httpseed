@@ -16,10 +16,10 @@ class DnsServer(private val dnsName: Name, private val port: Int, private val cr
             val inPacket = DatagramPacket(inBits, inBits.size())
             while (true) {
                 try {
-                    inPacket.setLength(inBits.size())
+                    inPacket.length = inBits.size()
                     socket.receive(inPacket)
                     val outBits = processMessage(Message(inBits))
-                    val outPacket = DatagramPacket(outBits, outBits.size(), inPacket.getSocketAddress())
+                    val outPacket = DatagramPacket(outBits, outBits.size(), inPacket.socketAddress)
                     socket.send(outPacket)
                 } catch (e: Throwable) {
                     log.error("Error handling DNS request", e)
@@ -29,29 +29,29 @@ class DnsServer(private val dnsName: Name, private val port: Int, private val cr
     }
 
     fun processMessage(message: Message): ByteArray {
-        val header = message.getHeader()
-        if (header.getOpcode() != Opcode.QUERY) {
-            log.error("Got message with unimplemented opcode {}", header.getOpcode())
+        val header = message.header
+        if (header.opcode != Opcode.QUERY) {
+            log.error("Got message with unimplemented opcode {}", header.opcode)
             return errorMessage(message, Rcode.NOTIMP)
         }
-        if (header.getRcode() != Rcode.NOERROR) {
-            log.error("Got message with bad rcode: ${header.getRcode()}")
+        if (header.rcode != Rcode.NOERROR) {
+            log.error("Got message with bad rcode: ${header.rcode}")
             return errorMessage(message, Rcode.FORMERR)
         }
-        val queryName = message.getQuestion().getName()
+        val queryName = message.question.name
         if (queryName != dnsName) {
             log.error("Got query with unrecognised name ${queryName}")
             return errorMessage(message, Rcode.NXDOMAIN)
         }
-        val response = Message(header.getID())
+        val response = Message(header.id)
         if (header.getFlag(Flags.RD.toInt()))
-            response.getHeader().setFlag(Flags.RD.toInt())
-        response.getHeader().setFlag(Flags.QR.toInt());
-        response.getHeader().setFlag(Flags.AA.toInt());
-        response.addRecord(message.getQuestion(), Section.QUESTION)
+            response.header.setFlag(Flags.RD.toInt())
+        response.header.setFlag(Flags.QR.toInt());
+        response.header.setFlag(Flags.AA.toInt());
+        response.addRecord(message.question, Section.QUESTION)
         val ips = crawler.getSomePeers(30, -1)
         for (ip in ips) {
-            val ipaddr = ip.first.getAddress()
+            val ipaddr = ip.first.address
             val TTL = 60L  // seconds
             try {
                 if (ipaddr is Inet4Address)
@@ -67,12 +67,12 @@ class DnsServer(private val dnsName: Name, private val port: Int, private val cr
 
     fun errorMessage(query: Message, code: Int): ByteArray {
         val msg = Message()
-        val hdr = query.getHeader()
-        hdr.setRcode(code)
+        val hdr = query.header
+        hdr.rcode = code
         for (i in 0..3) msg.removeAllRecords(i)
         if (code == Rcode.SERVFAIL)
-            msg.addRecord(query.getQuestion(), Section.QUESTION)
-        msg.setHeader(hdr)
+            msg.addRecord(query.question, Section.QUESTION)
+        msg.header = hdr
         return msg.toWire()
     }
 }

@@ -7,15 +7,10 @@ import java.util.ArrayList
 import java.util.Collections
 import java.net.InetSocketAddress
 import com.google.common.net.HostAndPort
-import com.sun.net.httpserver.HttpServer
-import com.sun.net.httpserver.HttpExchange
-import com.sun.net.httpserver.HttpHandler
-import sun.net.www.protocol.http.HttpURLConnection
-
 
 fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
     val hostAndPort = HostAndPort.fromString(ipAndPort.trim())
-    val sockaddr = InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort())
+    val sockaddr = InetSocketAddress(hostAndPort.hostText, hostAndPort.port)
     return sockaddr
 }
 
@@ -50,10 +45,4 @@ public inline fun Int.gatherTimes<T>(body : () -> T): List<T> {
     for (i in 0..this)
         result.add(body())
     return result
-}
-
-public fun <T> List<T>.shuffle(): ArrayList<T> {
-    val copy = ArrayList(this)
-    Collections.shuffle(copy)
-    return copy
 }

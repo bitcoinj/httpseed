@@ -49,8 +49,8 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
     private val db = DBMaker.newFileDB(workingDir.resolve("crawlerdb").toFile()).make()
-    public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap("addrToStatus")
-    GuardedBy("this") private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
+    public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap<InetSocketAddress, PeerData>("addrToStatus") as MutableMap<InetSocketAddress, PeerData>
+    @GuardedBy("this") private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
 
     private val connecting: MutableSet<InetSocketAddress> = Collections.synchronizedSet(HashSet())
 
@@ -63,7 +63,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     data class LightweightAddress(public val addr: ByteArray, public val port: Short) {
         fun toInetSocketAddress() = InetSocketAddress(InetAddress.getByAddress(addr), port.toInt())
     }
-    fun InetSocketAddress.toLightweight() = LightweightAddress(this.getAddress().getAddress(), this.getPort().toShort())
+    fun InetSocketAddress.toLightweight() = LightweightAddress(this.address.address, this.port.toShort())
     private val addressQueue = HashSet<LightweightAddress>()
 
     // Recrawl queue
@@ -108,7 +108,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             override fun onPreMessageReceived(peer: Peer, m: Message): Message {
                 if (m is AddressMessage) {
                     Threading.USER_THREAD execute {
-                        val sockaddrs = m.getAddresses() map { it.getSocketAddress() }
+                        val sockaddrs = m.addresses map { it.socketAddress }
                         val fresh = sockaddrs filterNot { addrMap.containsKey(it) or addressQueue.contains(it) }
                         if (fresh.isNotEmpty()) {
                             log.info("Got ${fresh.size()} new address(es) from $peer" + if (fresh.size() < 10) ": " + fresh.joinToString(",") else "")
@@ -123,7 +123,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
         if (okPeers.isEmpty()) {
             // First run: request some addresses. Response will be handled by the event listener above.
-            peer.getAddr()
+            peer.addr
         } else {
             // Pick some peers that were considered OK on the last run and recrawl them immediately to kick things off again.
             log.info("Kicking off crawl with some peers from previous run")
@@ -187,7 +187,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         var newData = PeerData(
                 status = PeerStatus.OK,
                 lastCrawlTime = Instant.now(),
-                serviceBits = peer.getPeerVersionMessage().localServices,
+                serviceBits = peer.peerVersionMessage.localServices,
                 lastSuccessTime = Instant.now()
         )
         addrMap[addr] = newData
@@ -207,7 +207,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     fun attemptConnect(addr: InetSocketAddress) {
         connecting.add(addr)
         val peer = Peer(params, verMsg, null, PeerAddress(addr))
-        peer.getVersionHandshakeFuture() later { peer ->
+        peer.versionHandshakeFuture later { peer ->
             onConnect(addr, peer)
         }
         // Possibly pause a moment to stay within our connects/sec budget.
@@ -230,15 +230,15 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     }
 
     private fun queueAddrs(addr: AddressMessage) {
-        queueAddrs(addr.getAddresses() filter { isPeerAddressRoutable(it) } map { it.toSocketAddress() })
+        queueAddrs(addr.addresses filter { isPeerAddressRoutable(it) } map { it.toSocketAddress() })
     }
 
     private fun queueAddrs(sockaddrs: List<InetSocketAddress>) {
         addressQueue.addAll(sockaddrs map {
             // If we found a peer on the same machine as the cartographer, look up our own hostname to find the public IP
             // instead of publishing localhost.
-            if (it.getAddress().isAnyLocalAddress() || it.getAddress().isLoopbackAddress()) {
-                val rs = InetSocketAddress(hostname, it.getPort())
+            if (it.address.isAnyLocalAddress || it.address.isLoopbackAddress) {
+                val rs = InetSocketAddress(hostname, it.port)
                 log.info("Replacing $it with $rs")
                     rs.toLightweight()
             } else {
@@ -249,9 +249,9 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     }
 
     private fun isPeerAddressRoutable(peerAddress: PeerAddress): Boolean {
-        val address = peerAddress.getAddr()
+        val address = peerAddress.addr
         if (address is Inet4Address) {
-            val a0 = UnsignedBytes.toInt(address.getAddress()[0])
+            val a0 = UnsignedBytes.toInt(address.address[0])
             if (a0 >= 240) // Reserved for future use
                 return false
         }
@@ -260,9 +260,9 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     private fun onConnect(sockaddr: InetSocketAddress, peer: Peer) {
         connecting.remove(sockaddr)
-        console.record(peer.getPeerVersionMessage())
+        console.record(peer.peerVersionMessage)
 
-        val heightDiff = kit.chain().getBestChainHeight() - peer.getBestHeight()
+        val heightDiff = kit.chain().bestChainHeight - peer.bestHeight
         if (heightDiff > 6) {
             log.warn("Peer $peer is behind our block chain by $heightDiff blocks")
             markAs(sockaddr, PeerStatus.BEHIND)
@@ -271,10 +271,10 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         }
         // Check up on it again in future to make sure it's still OK/has become OK.
         scheduleRecrawl(sockaddr)
-        peer.getAddr() later { addr ->
+        peer.addr later { addr ->
             queueAddrs(addr)
 
-            if (peer.getPeerVersionMessage().isGetUTXOsSupported()) {
+            if (peer.peerVersionMessage.isGetUTXOsSupported) {
                 // Check if it really is, to catch peers that are using the service bit for something else.
                 testGetUTXOSupport(peer, sockaddr)
             }
@@ -292,7 +292,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
             if (params == TestNet3Params.get()) {
                 txhash = Sha256Hash.wrap("1c899ae8efd6bd460e517195dc34d2beeca9c5e76ff98af644cf6a28807f86cf")
-                outcheck = { it.getValue() == Coin.parseCoin("0.00001") && it.getScriptPubKey().isSentToAddress() && it.getScriptPubKey().getToAddress(params).toString() == "mydzGfTrtHx8KnCRu43HfKwYyKjjSo6gUB" }
+                outcheck = { it.value == Coin.parseCoin("0.00001") && it.scriptPubKey.isSentToAddress && it.scriptPubKey.getToAddress(params).toString() == "mydzGfTrtHx8KnCRu43HfKwYyKjjSo6gUB" }
                 height = 314941
             } else if (params == MainNetParams.get()) {
                 // For now just assume Satoshi never spends the first block ever mined. There are much
@@ -300,16 +300,16 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 // not deliberately malicious peers that try to cheat this check.
                 txhash = Sha256Hash.wrap("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098")
                 val pubkey = "0496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858ee"
-                outcheck = { it.getValue() == Coin.FIFTY_COINS && it.getScriptPubKey().isSentToRawPubKey() &&
+                outcheck = { it.value == Coin.FIFTY_COINS && it.scriptPubKey.isSentToRawPubKey &&
                              // KT-6587 means we cannot use == as you would expect here.
-                             Arrays.equals(it.getScriptPubKey().getChunks()[0].data, BaseEncoding.base16().decode(pubkey.toUpperCase())) }
+                             Arrays.equals(it.scriptPubKey.chunks[0].data, BaseEncoding.base16().decode(pubkey.toUpperCase())) }
                 height = 1
             }
 
             val answer = peer.getUTXOs(listOf(TransactionOutPoint(params, 0, txhash))).get(10, TimeUnit.SECONDS)
-            val rightHeight = answer.getHeights()[0] == height
-            val rightSpentness = answer.getHitMap().size() == 1 && answer.getHitMap()[0] == 1.toByte()
-            val rightOutput = if (answer.getOutputs().size() == 1) outcheck(answer.getOutputs()[0]) else false
+            val rightHeight = answer.heights[0] == height
+            val rightSpentness = answer.hitMap.size() == 1 && answer.hitMap[0] == 1.toByte()
+            val rightOutput = if (answer.outputs.size() == 1) outcheck(answer.outputs[0]) else false
             if (!rightHeight || !rightSpentness || !rightOutput) {
                 log.warn("Found peer ${sockaddr} which has the GETUTXO service bit set but didn't answer the test query correctly")
                 log.warn("Got $answer")
@@ -330,7 +330,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         crawl()
     }
 
-    synchronized public fun getSomePeers(size: Int, serviceMask: Long): List<Pair<InetSocketAddress, PeerData>> {
+    @Synchronized public fun getSomePeers(size: Int, serviceMask: Long): List<Pair<InetSocketAddress, PeerData>> {
         // Take some items from the head of the list and add them back to the tail, i.e. we loop around.
         val addrs: List<InetSocketAddress> = if (serviceMask == -1L) {
             size.gatherTimes { okPeers.poll() }.filterNotNull()
@@ -343,7 +343,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         return addrs.map { it to addrMap[it]!! }
     }
 
-    synchronized private fun loadFromDB() {
+    @Synchronized private fun loadFromDB() {
         // Shuffle the peers because otherwise MapDB can give them back with very close IP ordering.
         val tmp: MutableList<InetSocketAddress> = arrayListOf()
         for ((addr, data) in addrMap) {

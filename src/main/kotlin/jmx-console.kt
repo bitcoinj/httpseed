@@ -32,51 +32,51 @@ class Console : ConsoleMXBean {
     public var crawler: Crawler? = null
 
     var connectsRateLimiter: RateLimiter = RateLimiter.create(15.0)
-        @synchronized get
-        @synchronized private set
+        @Synchronized get
+        @Synchronized private set
 
     // Allow JMX consoles to modify the rate limit on the fly
     override var allowedConnectsPerSec: Int
-        @synchronized get() = connectsRateLimiter.getRate().toInt()
-        @synchronized set(value) {
+        @Synchronized get() = connectsRateLimiter.rate.toInt()
+        @Synchronized set(value) {
             connectsRateLimiter = RateLimiter.create(value.toDouble())
         }
 
     override var recrawlMinutes = 30L
-        @synchronized get
-        @synchronized set
+        @Synchronized get
+        @Synchronized set
 
     override var numPendingAddrs: Int = 0
-        @synchronized get
-        @synchronized set
+        @Synchronized get
+        @Synchronized set
 
     override var numConnectFailures: Int = 0
-        @synchronized get
+        @Synchronized get
     override var numConnectAttempts: Int = 0
-        @synchronized get
+        @Synchronized get
 
-    synchronized public fun record(ver: VersionMessage) {
+    @Synchronized public fun record(ver: VersionMessage) {
         userAgents.add(ver.subVer)
     }
 
-    synchronized override fun getTopUserAgents(): List<String> = ArrayList(
-            Multisets.copyHighestCountFirst(userAgents).entrySet().map { "${it.getCount()}  ${it.getElement()}" }
+    @Synchronized override fun getTopUserAgents(): List<String> = ArrayList(
+            Multisets.copyHighestCountFirst(userAgents).entrySet().map { "${it.count}  ${it.element}" }
     ).take(10)
 
-    synchronized public fun recordConnectAttempt(): Int = numConnectAttempts++
-    synchronized public fun recordConnectFailure(): Int = numConnectFailures++
+    @Synchronized public fun recordConnectAttempt(): Int = numConnectAttempts++
+    @Synchronized public fun recordConnectFailure(): Int = numConnectFailures++
 
-    synchronized fun recordPauseTime(pauseTimeSecs: Double) {
+    @Synchronized fun recordPauseTime(pauseTimeSecs: Double) {
         totalPauseTimeSecs += pauseTimeSecs
     }
-    synchronized override fun getTotalPauseTimeSecs(): Double = totalPauseTimeSecs
+    @Synchronized override fun getTotalPauseTimeSecs(): Double = totalPauseTimeSecs
 
     override var numKnownAddresses: Int = 0
-        @synchronized get
-        @synchronized public set
+        @Synchronized get
+        @Synchronized public set
     override var numOKPeers: Int = 0
-        @synchronized get
-        @synchronized public set
+        @Synchronized get
+        @Synchronized public set
 
     override fun queueCrawl(ip: String) {
         crawler!!.attemptConnect(parseIPAndPort(ip))

@@ -23,12 +23,12 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
     init {
         if (!Files.exists(privkeyPath)) {
             privkey = ECKey()
-            Files.write(privkeyPath, (privkey.getPrivateKeyAsHex() + "\n").toByteArray())
-            log.info("Created fresh private key, public is ${privkey.getPublicKeyAsHex()}")
+            Files.write(privkeyPath, (privkey.privateKeyAsHex + "\n").toByteArray())
+            log.info("Created fresh private key, public is ${privkey.publicKeyAsHex}")
         } else {
             val str = Files.readAllLines(privkeyPath, StandardCharsets.UTF_8)[0].trim()
             privkey = ECKey.fromPrivate(BaseEncoding.base16().decode(str.toUpperCase()))
-            log.info("Using public key: ${privkey.getPublicKeyAsHex()}")
+            log.info("Using public key: ${privkey.publicKeyAsHex}")
         }
         val inetSocketAddress = InetSocketAddress(address, port)
         log.info("Binding HTTP server to ${inetSocketAddress}, context path is ${if (baseUrlPath.isEmpty()) "/" else baseUrlPath}")
@@ -46,7 +46,7 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
         server.createContext(path, object : HttpHandler {
             override fun handle(exchange: HttpExchange) {
                 try {
-                    if (exchange.getRequestMethod() != method) {
+                    if (exchange.requestMethod != method) {
                         exchange.sendResponseHeaders(HttpURLConnection.HTTP_BAD_METHOD, -1)
                         exchange.close()
                         return
@@ -65,9 +65,9 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
     }
 
     private fun handleRecrawlsRequest(exchange: HttpExchange) {
-        exchange.getResponseHeaders().add("Content-Type", "text/plain")
+        exchange.responseHeaders.add("Content-Type", "text/plain")
         exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0)
-        exchange.getResponseBody().writer().use {
+        exchange.responseBody.writer().use {
             var i = 0
             for (pending in crawler.snapshotRecrawlQueue()) {
                 it.write("$pending\n")
@@ -79,18 +79,18 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
 
     // Diagnostic query for status of individual peer.
     private fun handleLookupRequest(exchange: HttpExchange) {
-        val query: String = exchange.getRequestURI().getQuery() ?: throw BadRequestException()
-        val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.getPort())
+        val query: String = exchange.requestURI.query ?: throw BadRequestException()
+        val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.port)
         val response = crawler.addrMap[ip]?.toString() ?: "Unknown"
         val bits = response.toByteArray()
         exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
-        exchange.getResponseBody().write(bits)
+        exchange.responseBody.write(bits)
         exchange.close()
     }
 
     private fun handleForceRequest(exchange: HttpExchange) {
-        val query: String = exchange.getRequestURI().getQuery() ?: throw BadRequestException()
-        val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.getPort())
+        val query: String = exchange.requestURI.query ?: throw BadRequestException()
+        val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.port)
         log.info("Forcing recrawl for $ip")
         Threading.USER_THREAD.execute() {
             crawler.attemptConnect(ip)
@@ -101,7 +101,7 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
 
     // The main seed query.
     private fun handlePeersRequest(exchange: HttpExchange) {
-        val query: String? = exchange.getRequestURI().getQuery()
+        val query: String? = exchange.requestURI.query
         val params: Map<String, String> = if (query != null) Splitter.on('&').trimResults().withKeyValueSeparator("=").split(query) else mapOf()
         val serviceMask = params.get("srvmask")?.toLong()?.and(0xFFFFFF)
         val getutxo = params.get("getutxo") == "true"
@@ -113,13 +113,13 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
         val protos = data.map { dataToProto(it) }
         val msg = PeerSeedProtos.PeerSeeds.newBuilder()
                 .addAllSeed(protos)
-                .setTimestamp(Instant.now().getEpochSecond())
+                .setTimestamp(Instant.now().epochSecond)
                 .setNet(netName)
                 .build()
 
         val noCache = params.containsKey("nocache")
 
-        val path = exchange.getRequestURI().getPath()
+        val path = exchange.requestURI.path
         when {
             path.endsWith(".html") -> respond(exchange, protoToHTML(msg), "text/html; charset=UTF-8", noCache)
             path.endsWith(".json") -> respond(exchange, protoToJSON(msg), "application/json", noCache)
@@ -134,12 +134,12 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
     fun protoToHTML(msg: PeerSeedProtos.PeerSeeds) = HtmlFormat.printToString(msg).toByteArray()
     fun protoToJSON(msg: PeerSeedProtos.PeerSeeds) = JsonFormat.printToString(msg).toByteArray()
     fun protoToXML(msg: PeerSeedProtos.PeerSeeds)  = XmlFormat.printToString(msg).toByteArray()
-    fun protoToText(msg: PeerSeedProtos.PeerSeeds) = msg.getSeedList().map { it.getIpAddress() }.joinToString(",").toByteArray()
+    fun protoToText(msg: PeerSeedProtos.PeerSeeds) = msg.seedList.map { it.ipAddress }.joinToString(",").toByteArray()
 
     fun dataToProto(data: Pair<InetSocketAddress, PeerData>): PeerSeedProtos.PeerSeedData {
         val builder = PeerSeedProtos.PeerSeedData.newBuilder()
-        builder.setIpAddress(data.first.getAddress().toString().substring(1))
-        builder.setPort(data.first.getPort())
+        builder.setIpAddress(data.first.address.toString().substring(1))
+        builder.setPort(data.first.port)
         builder.setServices(data.second.serviceBits.toInt())
         return builder.build()
     }
@@ -148,7 +148,7 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
         val wrapper = PeerSeedProtos.SignedPeerSeeds.newBuilder()
         val bits = msg.toByteString()
         wrapper.setPeerSeeds(bits)
-        wrapper.setPubkey(privkey.getPubKey().toByteString())
+        wrapper.setPubkey(privkey.pubKey.toByteString())
         wrapper.setSignature(privkey.sign(Sha256Hash.of(bits.toByteArray())).encodeToDER().toByteString())
         val baos = ByteArrayOutputStream()
         val zip = GZIPOutputStream(baos)
@@ -158,15 +158,15 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
     }
 
     fun respond(exchange: HttpExchange, bits: ByteArray, mimeType: String, noCache: Boolean) {
-        exchange.getResponseHeaders().add("Content-Type", mimeType)
+        exchange.responseHeaders.add("Content-Type", mimeType)
         if (!noCache) {
             // Allow ISPs and so on to cache results: less bandwidth usage, more privacy -> it's a win. The signatures
             // on protobuf versions should prevent caches from tampering with the data. We can bump up the cache time in
             // future once the debugging/testing phase is over.
-            exchange.getResponseHeaders().add("Cache-Control", "no-transform,public,max-age=90")
+            exchange.responseHeaders.add("Cache-Control", "no-transform,public,max-age=90")
         }
         exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
-        exchange.getResponseBody().write(bits)
+        exchange.responseBody.write(bits)
         exchange.close()
     }
 }
