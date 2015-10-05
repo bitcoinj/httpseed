@@ -4,9 +4,10 @@ import com.google.common.util.concurrent.*
 import org.bitcoinj.utils.Threading
 import com.google.protobuf.ByteString
 import java.util.ArrayList
-import java.util.Collections
 import java.net.InetSocketAddress
 import com.google.common.net.HostAndPort
+import org.threeten.bp.Instant
+import org.threeten.bp.temporal.TemporalAmount
 
 fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
     val hostAndPort = HostAndPort.fromString(ipAndPort.trim())
@@ -46,3 +47,5 @@ public inline fun Int.gatherTimes<T>(body : () -> T): List<T> {
         result.add(body())
     return result
 }
+
+public operator fun Instant.minus(amount: TemporalAmount): Instant = this.minus(amount)

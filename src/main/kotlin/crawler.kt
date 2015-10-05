@@ -49,7 +49,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
     private val db = DBMaker.newFileDB(workingDir.resolve("crawlerdb").toFile()).make()
-    public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap<InetSocketAddress, PeerData>("addrToStatus") as MutableMap<InetSocketAddress, PeerData>
+    public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap<InetSocketAddress, PeerData>("addrToStatus") as MutableMap<InetSocketAddress, PeerData>  // KT-9465
     @GuardedBy("this") private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
 
     private val connecting: MutableSet<InetSocketAddress> = Collections.synchronizedSet(HashSet())
