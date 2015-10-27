@@ -30,7 +30,7 @@ public class BitcoinHTTPSeed {
             val options = try {
                 parser.parse(*args)
             } catch (e: OptionException) {
-                println(e.getMessage())
+                println(e.message)
                 parser.printHelpOn(System.out)
                 return
             }

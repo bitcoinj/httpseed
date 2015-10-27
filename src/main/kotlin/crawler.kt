@@ -38,7 +38,7 @@ data class PeerData(val status: PeerStatus, val serviceBits: Long, val lastCrawl
     // but have disappeared to see if they come back, or nodes that were behind when we last checked them.
     fun shouldRecrawl() = when (status) {
         PeerStatus.OK, PeerStatus.BEHIND, PeerStatus.UNTESTED -> true
-        PeerStatus.UNREACHABLE -> lastSuccessTime != null && lastSuccessTime isAfter Instant.now() - Duration.ofDays(1)
+        PeerStatus.UNREACHABLE -> lastSuccessTime != null && lastSuccessTime.isAfter(Instant.now() - Duration.ofDays(1))
         else -> false
     }
 }
@@ -107,11 +107,11 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         kit.peerGroup().addEventListener(object : AbstractPeerEventListener() {
             override fun onPreMessageReceived(peer: Peer, m: Message): Message {
                 if (m is AddressMessage) {
-                    Threading.USER_THREAD execute {
-                        val sockaddrs = m.addresses map { it.socketAddress }
-                        val fresh = sockaddrs filterNot { addrMap.containsKey(it) or addressQueue.contains(it) }
+                    Threading.USER_THREAD.execute {
+                        val sockaddrs = m.addresses.map { it.socketAddress }
+                        val fresh = sockaddrs.filterNot { addrMap.containsKey(it) or addressQueue.contains(it.toLightweight()) }
                         if (fresh.isNotEmpty()) {
-                            log.info("Got ${fresh.size()} new address(es) from $peer" + if (fresh.size() < 10) ": " + fresh.joinToString(",") else "")
+                            log.info("Got ${fresh.size} new address(es) from $peer" + if (fresh.size < 10) ": " + fresh.joinToString(",") else "")
                             queueAddrs(fresh)
                             crawl()
                         }
@@ -127,9 +127,9 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         } else {
             // Pick some peers that were considered OK on the last run and recrawl them immediately to kick things off again.
             log.info("Kicking off crawl with some peers from previous run")
-            console.numOKPeers = okPeers.size()
+            console.numOKPeers = okPeers.size
             Threading.USER_THREAD.execute() {
-                okPeers.take(20) forEach { attemptConnect(it) }
+                okPeers.take(20).forEach { attemptConnect(it) }
             }
         }
 
@@ -145,7 +145,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             val lightAddr: LightweightAddress? = addressQueue.firstOrNull()
             if (lightAddr == null) break
             addressQueue.remove(lightAddr)
-            console.numPendingAddrs = addressQueue.size()
+            console.numPendingAddrs = addressQueue.size
             // Some addr messages have bogus port values in them; ignore.
             if (lightAddr.port == 0.toShort()) continue
 
@@ -174,7 +174,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         db.commit()
         synchronized(this) {
             okPeers.remove(addr)
-            console.numOKPeers = okPeers.size()
+            console.numOKPeers = okPeers.size
         }
         return cur.status
     }
@@ -199,7 +199,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         if (oldStatus != PeerStatus.OK) {
             synchronized(this) {
                 okPeers.add(addr)
-                console.numOKPeers = okPeers.size()
+                console.numOKPeers = okPeers.size
             }
         }
     }
@@ -217,7 +217,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         console.recordConnectAttempt()
         ccm.openConnection(addr, peer) later { sockaddr, error ->
             if (error != null) {
-                connecting.remove(sockaddr)
+                connecting.remove(sockaddr!! as InetSocketAddress)
                 if (markAs(addr, PeerStatus.UNREACHABLE) == PeerStatus.OK) {
                     // Was previously OK, now gone.
                     log.info("Peer $addr has disappeared: will keep retrying for 24 hours")
@@ -230,11 +230,11 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     }
 
     private fun queueAddrs(addr: AddressMessage) {
-        queueAddrs(addr.addresses filter { isPeerAddressRoutable(it) } map { it.toSocketAddress() })
+        queueAddrs(addr.addresses.filter { isPeerAddressRoutable(it) }.map { it.toSocketAddress() })
     }
 
     private fun queueAddrs(sockaddrs: List<InetSocketAddress>) {
-        addressQueue.addAll(sockaddrs map {
+        addressQueue.addAll(sockaddrs.map {
             // If we found a peer on the same machine as the cartographer, look up our own hostname to find the public IP
             // instead of publishing localhost.
             if (it.address.isAnyLocalAddress || it.address.isLoopbackAddress) {
@@ -245,7 +245,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 it.toLightweight()
             }
         })
-        console.numPendingAddrs = addressQueue.size()
+        console.numPendingAddrs = addressQueue.size
     }
 
     private fun isPeerAddressRoutable(peerAddress: PeerAddress): Boolean {
@@ -308,8 +308,8 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
             val answer = peer.getUTXOs(listOf(TransactionOutPoint(params, 0, txhash))).get(10, TimeUnit.SECONDS)
             val rightHeight = answer.heights[0] == height
-            val rightSpentness = answer.hitMap.size() == 1 && answer.hitMap[0] == 1.toByte()
-            val rightOutput = if (answer.outputs.size() == 1) outcheck(answer.outputs[0]) else false
+            val rightSpentness = answer.hitMap.size == 1 && answer.hitMap[0] == 1.toByte()
+            val rightOutput = if (answer.outputs.size == 1) outcheck(answer.outputs[0]) else false
             if (!rightHeight || !rightSpentness || !rightOutput) {
                 log.warn("Found peer ${sockaddr} which has the GETUTXO service bit set but didn't answer the test query correctly")
                 log.warn("Got $answer")
@@ -353,10 +353,10 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 scheduleRecrawl(addr)
         }
         Collections.shuffle(tmp)
-        okPeers addAll tmp
-        log.info("We have ${addrMap.size()} IP addresses in our database of which ${okPeers.size()} are considered OK")
-        console.numOKPeers = okPeers.size()
-        console.numKnownAddresses = addrMap.size()
+        okPeers.addAll(tmp)
+        log.info("We have ${addrMap.size} IP addresses in our database of which ${okPeers.size} are considered OK")
+        console.numOKPeers = okPeers.size
+        console.numKnownAddresses = addrMap.size
     }
 
     private fun scheduleRecrawl(addr: InetSocketAddress) {

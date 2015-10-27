@@ -13,13 +13,13 @@ class DnsServer(private val dnsName: Name, private val port: Int, private val cr
         thread(start = true, daemon = true, name = "DNS UDP", block = {
             val socket = DatagramSocket(port.toInt())
             val inBits = ByteArray(512)
-            val inPacket = DatagramPacket(inBits, inBits.size())
+            val inPacket = DatagramPacket(inBits, inBits.size)
             while (true) {
                 try {
-                    inPacket.length = inBits.size()
+                    inPacket.length = inBits.size
                     socket.receive(inPacket)
                     val outBits = processMessage(Message(inBits))
-                    val outPacket = DatagramPacket(outBits, outBits.size(), inPacket.socketAddress)
+                    val outPacket = DatagramPacket(outBits, outBits.size, inPacket.socketAddress)
                     socket.send(outPacket)
                 } catch (e: Throwable) {
                     log.error("Error handling DNS request", e)

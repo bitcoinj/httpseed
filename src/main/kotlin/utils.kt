@@ -15,7 +15,7 @@ fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
     return sockaddr
 }
 
-fun <T> ListenableFuture<T>.later(action: (T) -> Unit) {
+infix fun <T> ListenableFuture<T>.later(action: (T) -> Unit) {
     Futures.addCallback(this, object : FutureCallback<T> {
         override fun onSuccess(result: T) {
             action(result)
@@ -27,7 +27,7 @@ fun <T> ListenableFuture<T>.later(action: (T) -> Unit) {
     }, Threading.USER_THREAD)
 }
 
-fun <T: Any> ListenableFuture<T>.later(action: (T?, Throwable?) -> Unit) {
+infix fun <T: Any> ListenableFuture<T>.later(action: (T?, Throwable?) -> Unit) {
     Futures.addCallback(this, object : FutureCallback<T> {
         override fun onSuccess(result: T) {
             action(result, null)
@@ -41,7 +41,7 @@ fun <T: Any> ListenableFuture<T>.later(action: (T?, Throwable?) -> Unit) {
 
 fun ByteArray.toByteString(): ByteString = ByteString.copyFrom(this)
 
-public inline fun Int.gatherTimes<T>(body : () -> T): List<T> {
+public inline fun <T> Int.gatherTimes(body : () -> T): List<T> {
     val result = ArrayList<T>(this)
     for (i in 0..this)
         result.add(body())

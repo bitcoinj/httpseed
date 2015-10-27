@@ -31,12 +31,12 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
             log.info("Using public key: ${privkey.publicKeyAsHex}")
         }
         val inetSocketAddress = InetSocketAddress(address, port)
-        log.info("Binding HTTP server to ${inetSocketAddress}, context path is ${if (baseUrlPath.isEmpty()) "/" else baseUrlPath}")
+        log.info("Binding HTTP server to $inetSocketAddress, context path is ${if (baseUrlPath.isEmpty()) "/" else baseUrlPath}")
         server = HttpServer.create(inetSocketAddress, 0)
-        serve("GET", "$baseUrlPath/peers", ::handlePeersRequest)
-        serve("GET", "$baseUrlPath/lookup", ::handleLookupRequest)
-        serve("GET", "$baseUrlPath/recrawls", ::handleRecrawlsRequest)
-        serve("GET", "$baseUrlPath/force", ::handleForceRequest)
+        serve("GET", "$baseUrlPath/peers", { handlePeersRequest(it) })
+        serve("GET", "$baseUrlPath/lookup", { handleLookupRequest(it) })
+        serve("GET", "$baseUrlPath/recrawls", { handleRecrawlsRequest(it) })
+        serve("GET", "$baseUrlPath/force", { handleForceRequest(it) })
         server.start()
     }
 
@@ -83,7 +83,7 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
         val ip = if (query.contains(":")) parseIPAndPort(query) else InetSocketAddress(query, crawler.params.port)
         val response = crawler.addrMap[ip]?.toString() ?: "Unknown"
         val bits = response.toByteArray()
-        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size.toLong())
         exchange.responseBody.write(bits)
         exchange.close()
     }
@@ -165,7 +165,7 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
             // future once the debugging/testing phase is over.
             exchange.responseHeaders.add("Cache-Control", "no-transform,public,max-age=90")
         }
-        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size().toLong())
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, bits.size.toLong())
         exchange.responseBody.write(bits)
         exchange.close()
     }
