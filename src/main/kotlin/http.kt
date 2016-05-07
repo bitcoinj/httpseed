@@ -129,6 +129,7 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
             // Default format is signed protobuf
             else -> respond(exchange, signSerializeAndCompress(msg), "application/octet-stream", noCache)
         }
+        log.info("Query ${exchange.getRequestURI()} from ${exchange.getRemoteAddress()} ${exchange.getRequestHeaders().get("User-Agent")} => ${data.size} peers")
     }
 
     fun protoToHTML(msg: PeerSeedProtos.PeerSeeds) = HtmlFormat.printToString(msg).toByteArray()
