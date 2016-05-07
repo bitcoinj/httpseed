@@ -17,8 +17,8 @@ fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
 
 infix fun <T> ListenableFuture<T>.later(action: (T) -> Unit) {
     Futures.addCallback(this, object : FutureCallback<T> {
-        override fun onSuccess(result: T) {
-            action(result)
+        override fun onSuccess(result: T?) {
+            action(result!!)
         }
 
         override fun onFailure(t: Throwable) {
@@ -29,7 +29,7 @@ infix fun <T> ListenableFuture<T>.later(action: (T) -> Unit) {
 
 infix fun <T: Any> ListenableFuture<T>.later(action: (T?, Throwable?) -> Unit) {
     Futures.addCallback(this, object : FutureCallback<T> {
-        override fun onSuccess(result: T) {
+        override fun onSuccess(result: T?) {
             action(result, null)
         }
 

@@ -132,6 +132,6 @@
     </dependencies>
 
     <properties>
-        <kotlin.version>1.0.0-beta-1038</kotlin.version>
+        <kotlin.version>1.0.0</kotlin.version>
     </properties>
 </project>

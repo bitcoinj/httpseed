@@ -10,7 +10,7 @@ class DnsServer(private val dnsName: Name, private val port: Int, private val cr
     private val log = LoggerFactory.getLogger("cartographer.dnsserver")
 
     public fun start() {
-        thread(start = true, daemon = true, name = "DNS UDP", block = {
+        thread(start = true, isDaemon = true, name = "DNS UDP", block = {
             val socket = DatagramSocket(port.toInt())
             val inBits = ByteArray(512)
             val inPacket = DatagramPacket(inBits, inBits.size)

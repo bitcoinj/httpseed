@@ -41,7 +41,7 @@ public class BitcoinHTTPSeed {
             }
 
             val dir = Paths.get(options.valueOf(dirArg))
-            val params = NetworkParameters.fromPmtProtocolID(options.valueOf(netArg))
+            val params = NetworkParameters.fromPmtProtocolID(options.valueOf(netArg)) ?: throw IllegalArgumentException("invalid net parameter")
 
             setupLogging(dir, options.has(logToConsole))
 
