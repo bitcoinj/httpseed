@@ -2,6 +2,7 @@ package net.plan99.bitcoin.cartographer
 
 import org.bitcoinj.params.*
 import org.bitcoinj.core.*
+import org.bitcoinj.core.listeners.PreMessageReceivedEventListener
 import org.bitcoinj.kits.WalletAppKit
 import org.bitcoinj.net.NioClientManager
 import org.bitcoinj.utils.Threading
@@ -104,7 +105,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         val peer = kit.peerGroup().waitForPeers(1).get()[0]
 
         // When we receive an addr broadcast from our long-term network connections, queue up the addresses for crawling.
-        kit.peerGroup().addEventListener(object : AbstractPeerEventListener() {
+        kit.peerGroup().addPreMessageReceivedEventListener(Threading.SAME_THREAD, object : PreMessageReceivedEventListener {
             override fun onPreMessageReceived(peer: Peer, m: Message): Message {
                 if (m is AddressMessage) {
                     Threading.USER_THREAD.execute {
@@ -119,7 +120,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 }
                 return m
             }
-        }, Threading.SAME_THREAD)
+        })
 
         if (okPeers.isEmpty()) {
             // First run: request some addresses. Response will be handled by the event listener above.
