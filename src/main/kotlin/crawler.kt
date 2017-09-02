@@ -40,7 +40,6 @@ data class PeerData(val status: PeerStatus, val serviceBits: Long, val lastCrawl
     fun shouldRecrawl() = when (status) {
         PeerStatus.OK, PeerStatus.BEHIND, PeerStatus.UNTESTED -> true
         PeerStatus.UNREACHABLE -> lastSuccessTime != null && lastSuccessTime.isAfter(Instant.now() - Duration.ofDays(1))
-        else -> false
     }
 }
 
@@ -183,7 +182,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     private fun markAsOK(addr: InetSocketAddress, peer: Peer) {
         val peerData: PeerData? = addrMap[addr]
         val oldStatus = peerData?.status
-        if (oldStatus == PeerStatus.UNREACHABLE && peerData!!.lastSuccessTime != null)
+        if (oldStatus == PeerStatus.UNREACHABLE && peerData.lastSuccessTime != null)
             log.info("Peer $addr came back from the dead")
         var newData = PeerData(
                 status = PeerStatus.OK,
@@ -208,8 +207,8 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     fun attemptConnect(addr: InetSocketAddress) {
         connecting.add(addr)
         val peer = Peer(params, verMsg, null, PeerAddress(addr))
-        peer.versionHandshakeFuture later { peer ->
-            onConnect(addr, peer)
+        peer.versionHandshakeFuture later { p ->
+            onConnect(addr, p)
         }
         // Possibly pause a moment to stay within our connects/sec budget.
         val pauseTime = console.connectsRateLimiter.acquire()

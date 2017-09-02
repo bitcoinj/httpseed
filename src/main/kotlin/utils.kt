@@ -47,5 +47,3 @@ public inline fun <T> Int.gatherTimes(body : () -> T): List<T> {
         result.add(body())
     return result
 }
-
-public operator fun Instant.minus(amount: TemporalAmount): Instant = this.minus(amount)
