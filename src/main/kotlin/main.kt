@@ -74,6 +74,8 @@ public class BitcoinHTTPSeed {
                 DnsServer(Name(if (s.endsWith('.')) s else s + '.'), options.valueOf(dnsPort).toInt(), crawler).start()
             }
             crawler.start()
+
+            Runtime.getRuntime().addShutdownHook(Thread { crawler.stop() })
         }
 
         private fun setupJMX(): Console {

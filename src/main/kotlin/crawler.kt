@@ -173,6 +173,11 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         }
     }
 
+    fun stop() {
+        log.info("Stopping ...")
+        db.close()
+    }
+
     fun crawl() {
         while (openConnections < maxConnections) {
             val lightAddr: LightweightAddress? = addressQueue.firstOrNull()
