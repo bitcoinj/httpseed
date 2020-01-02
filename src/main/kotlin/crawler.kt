@@ -49,6 +49,7 @@ import java.nio.file.Path
 import java.util.Arrays
 import java.util.Collections
 import java.util.LinkedList
+import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.DelayQueue
 import java.util.concurrent.Delayed
 import java.util.concurrent.TimeUnit
@@ -81,8 +82,8 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     private val log: Logger = LoggerFactory.getLogger("cartographer.engine")
 
     private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
-    private val db = DBMaker.newFileDB(workingDir.resolve("crawlerdb").toFile()).make()
-    public val addrMap: MutableMap<InetSocketAddress, PeerData> = db.getHashMap<InetSocketAddress, PeerData>("addrToStatus") as MutableMap<InetSocketAddress, PeerData>  // KT-9465
+    private val db = DBMaker.fileDB(workingDir.resolve("crawlerdb").toFile()).make()
+    public val addrMap: ConcurrentMap<InetSocketAddress, PeerData> = db.hashMap("addrToStatus").createOrOpen() as ConcurrentMap<InetSocketAddress, PeerData>
     @GuardedBy("this") private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
 
     private val connecting: MutableSet<InetSocketAddress> = Collections.synchronizedSet(HashSet())
