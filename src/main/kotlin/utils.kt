@@ -26,7 +26,7 @@ import java.net.InetSocketAddress
 
 fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
     val hostAndPort = HostAndPort.fromString(ipAndPort.trim())
-    val sockaddr = InetSocketAddress(hostAndPort.hostText, hostAndPort.port)
+    val sockaddr = InetSocketAddress(hostAndPort.host, hostAndPort.port)
     return sockaddr
 }
 

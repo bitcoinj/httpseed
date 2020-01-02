@@ -238,7 +238,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     fun attemptConnect(addr: InetSocketAddress) {
         connecting.add(addr)
-        val peer = Peer(params, verMsg, null, PeerAddress(addr))
+        val peer = Peer(params, verMsg, null, PeerAddress(params, addr))
         peer.versionHandshakeFuture later { p ->
             onConnect(addr, p)
         }
