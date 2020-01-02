@@ -21,14 +21,12 @@ import joptsimple.OptionParser
 import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.utils.BriefLogFormatter
 import org.xbill.DNS.Name
-import java.lang.management.ManagementFactory
 import java.net.InetAddress
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
-import javax.management.ObjectName
 
 public class BitcoinHTTPSeed {
     companion object {
@@ -64,9 +62,7 @@ public class BitcoinHTTPSeed {
 
             setupLogging(dir, options.has(logToConsole))
 
-            val console = setupJMX()
-            console.allowedConnectsPerSec = options.valueOf(crawlsPerSec)
-            val crawler = Crawler(console, dir, params, options.valueOf(hostname))
+            val crawler = Crawler(dir, params, options.valueOf(hostname))
             HttpSeed(if (options.has(httpAddress)) InetAddress.getByName(options.valueOf(httpAddress)) else null,
                 options.valueOf(httpPort).toInt(), "", dir.resolve("privkey"), crawler, params.paymentProtocolId)
             if (options.has(dnsname)) {
@@ -76,14 +72,6 @@ public class BitcoinHTTPSeed {
             crawler.start()
 
             Runtime.getRuntime().addShutdownHook(Thread { crawler.stop() })
-        }
-
-        private fun setupJMX(): Console {
-            val mbs = ManagementFactory.getPlatformMBeanServer();
-            val name = ObjectName("org.bitcoinj.httpseed:type=Console")
-            val console = Console()
-            mbs.registerMBean(console, name)
-            return console
         }
 
         private var loggerPin: java.util.logging.Logger? = null

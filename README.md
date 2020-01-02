@@ -29,8 +29,6 @@ This application is a Bitcoin P2P network crawler and server with the following 
 * And for good measure, can also serve DNS queries too with a simple built in DNS server.
 * Crawl speed can be specified in terms of successful connects per second, rather than the crude number-of-threads
   approach used by other crawlers.
-* Exports statistics and controls using JMX, so you can reconfigure it at runtime and view charts of things like
-  connects/sec or CPU usage using any JMX console, like Mission Control.
 
 There is support in bitcoinj git master (from 0.13 onwards) for using the protobuf based protocol.
 
@@ -74,35 +72,6 @@ key in hex and this can be distributed in applications (assuming you keep your p
 
 In many setups you will want to run the server as a non-root user. You can use iptables to redirect the DNS port. Then
 just add an NS record for the right host name.
-
-
-Using JMX
-=========
-
-It can be useful to monitor and control your crawler remotely. Cartographer exports various statistics and knobs
-via a technology called JMX. JMX is not a perfect monitoring tool by any means, but it is extremely simple to implement
-(look at jmx-console.kt to see how little code is required).
-
-It's a bad idea to run with JMX active all the time, because it doesn't tunnel well via SSH and the setup below will
-only be protected by a cleartext password. So don't use it unless you have a trustworthy connection.
-
-To activate it, you need to do a few things:
-
-1. Create a secure password, e.g. `password=$( head /dev/urandom | shasum )`
-2. Add it to lib/management/jmxremote.password file in your JRE like this: `echo "controlRole $password" >>lib/management/jmxremote.password`
-3. Make sure the permissions on that file are restricted to only you: `chmod 400 lib/management/jmxremote.password`
-2. Add `-Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.port=7091` to the command line before `-jar` and run the crawler as before.
-
-You can now use any JMX console to connect to the server and monitor/control it. For example the Mission Control
-program that comes with the latest JDK is passable (I haven't yet found a JMX console I'd describe as excellent).
-Run it locally on your desktop using the "jmc" command. Then add your hostname as a remote connection and open
-"MBean Server". You should see a bunch of graphs and gauges showing memory, CPU and fragmentation. At the bottom
-there is a row of tabs that expose more info about various things. Click "MBean Browser" to get a tree of objects
-that are exporting stats and knobs in the server. Find the cartographer folder and select the "Console" item.
-
-Now you can see various stats. The bold / yellow highlighted lines are variables that can be modified. You can
-plot graphs of the ones that are changing by right clicking and selecting Visualise. From this screen you can
-also submit manual recrawl requests. Include both IP address and port when doing so.
 
 Possible future features
 ========================

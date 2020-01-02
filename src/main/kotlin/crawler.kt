@@ -101,7 +101,7 @@ private class PeerDataSerializer : Serializer<PeerData> {
 }
 
 // Crawler engine
-class Crawler(private val console: Console, private val workingDir: Path, public val params: NetworkParameters, private val hostname: String) {
+class Crawler(private val workingDir: Path, public val params: NetworkParameters, private val hostname: String) {
     private val log: Logger = LoggerFactory.getLogger("cartographer.engine")
 
     private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
@@ -123,6 +123,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     }
     fun InetSocketAddress.toLightweight() = LightweightAddress(this.address.address, this.port.toShort())
     private val addressQueue = HashSet<LightweightAddress>()
+    private val recrawlMinutes = 30L
 
     // Recrawl queue
     inner class PendingRecrawl(val addr: InetSocketAddress) : Delayed {
@@ -131,7 +132,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
         override fun compareTo(other: Delayed?): Int = creationTime.compareTo((other as PendingRecrawl).creationTime)
         override fun getDelay(unit: TimeUnit): Long =
-            unit.convert(creationTime + (console.recrawlMinutes * 60) - nowSeconds(), TimeUnit.SECONDS)
+            unit.convert(creationTime + (recrawlMinutes * 60) - nowSeconds(), TimeUnit.SECONDS)
 
         fun delayAsString() = Duration.ofSeconds(getDelay(TimeUnit.SECONDS)).toString().substring(2).replace("M", " minutes ").replace("S", " seconds")
         override fun toString() = "${addr.toString().substring(1)} in ${delayAsString()}"
@@ -141,8 +142,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     public fun snapshotRecrawlQueue(): Iterator<PendingRecrawl> = recrawlQueue.iterator()   // Snapshots internally
 
     public fun start() {
-        console.crawler = this
-
         loadFromDB()
 
         val VERSION = "1.2"
@@ -185,7 +184,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         } else {
             // Pick some peers that were considered OK on the last run and recrawl them immediately to kick things off again.
             log.info("Kicking off crawl with some peers from previous run")
-            console.numOKPeers = okPeers.size
             Threading.USER_THREAD.execute() {
                 okPeers.take(20).forEach { attemptConnect(it) }
             }
@@ -208,7 +206,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             val lightAddr: LightweightAddress? = addressQueue.firstOrNull()
             if (lightAddr == null) break
             addressQueue.remove(lightAddr)
-            console.numPendingAddrs = addressQueue.size
             // Some addr messages have bogus port values in them; ignore.
             if (lightAddr.port == 0.toShort()) continue
 
@@ -219,11 +216,10 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             var doConnect = if (data == null) {
                 // Not seen this address before and not already probing it
                 addrMap[addr] = PeerData(PeerStatus.UNTESTED, 0, Instant.now())
-                console.numKnownAddresses++
                 db.commit()
                 true
             } else {
-                data.shouldRecrawl() && data.isTimeToRecrawl(console.recrawlMinutes)
+                data.shouldRecrawl() && data.isTimeToRecrawl(recrawlMinutes)
             }
 
             if (doConnect)
@@ -237,7 +233,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         db.commit()
         synchronized(this) {
             okPeers.remove(addr)
-            console.numOKPeers = okPeers.size
         }
         return cur.status
     }
@@ -254,15 +249,12 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 lastSuccessTime = Instant.now()
         )
         addrMap[addr] = newData
-        if (peerData == null)
-            console.numKnownAddresses++
         db.commit()
 
         // We might have recrawled an OK peer if forced via JMX.
         if (oldStatus != PeerStatus.OK) {
             synchronized(this) {
                 okPeers.add(addr)
-                console.numOKPeers = okPeers.size
             }
         }
     }
@@ -274,10 +266,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
             onConnect(addr, p)
         }
         // Possibly pause a moment to stay within our connects/sec budget.
-        val pauseTime = console.connectsRateLimiter.acquire()
-        console.recordPauseTime(pauseTime)
         openConnections++
-        console.recordConnectAttempt()
         ccm.openConnection(addr, peer) later { sockaddr, error ->
             if (error != null) {
                 connecting.remove(sockaddr!! as InetSocketAddress)
@@ -287,7 +276,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                     scheduleRecrawl(addr)
                 }
                 onDisconnected()
-                console.recordConnectFailure()
             }
         }
     }
@@ -308,7 +296,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 it.toLightweight()
             }
         })
-        console.numPendingAddrs = addressQueue.size
     }
 
     private fun isPeerAddressRoutable(peerAddress: PeerAddress): Boolean {
@@ -323,7 +310,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
     private fun onConnect(sockaddr: InetSocketAddress, peer: Peer) {
         connecting.remove(sockaddr)
-        console.record(peer.peerVersionMessage)
 
         val heightDiff = kit.chain().bestChainHeight - peer.bestHeight
         if (heightDiff > 6) {
@@ -418,8 +404,6 @@ class Crawler(private val console: Console, private val workingDir: Path, public
         Collections.shuffle(tmp)
         okPeers.addAll(tmp)
         log.info("We have ${addrMap.size} IP addresses in our database of which ${okPeers.size} are considered OK")
-        console.numOKPeers = okPeers.size
-        console.numKnownAddresses = addrMap.size
     }
 
     private fun scheduleRecrawl(addr: InetSocketAddress) {
