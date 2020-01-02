@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.plan99.bitcoin.cartographer
+package org.bitcoinj.httpseed
 
 import joptsimple.OptionException
 import joptsimple.OptionParser
@@ -80,7 +80,7 @@ public class BitcoinHTTPSeed {
 
         private fun setupJMX(): Console {
             val mbs = ManagementFactory.getPlatformMBeanServer();
-            val name = ObjectName("net.plan99.bitcoin.cartographer:type=Console")
+            val name = ObjectName("org.bitcoinj.httpseed:type=Console")
             val console = Console()
             mbs.registerMBean(console, name)
             return console

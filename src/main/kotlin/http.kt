@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.plan99.bitcoin.cartographer
+package org.bitcoinj.httpseed
 
 import com.google.common.base.Splitter
 import com.google.common.io.BaseEncoding

@@ -23,7 +23,7 @@ plugins {
 group = 'org.bitcoinj'
 version = '1.0-SNAPSHOT'
 archivesBaseName = 'httpseed'
-mainClassName = 'net.plan99.bitcoin.cartographer.BitcoinHTTPSeed'
+mainClassName = 'org.bitcoinj.httpseed.BitcoinHTTPSeed'
 
 repositories {
     mavenCentral()

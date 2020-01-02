@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.plan99.bitcoin.cartographer
+package org.bitcoinj.httpseed
 
 import org.slf4j.LoggerFactory
 import org.xbill.DNS.AAAARecord
