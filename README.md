@@ -23,7 +23,7 @@ This application is a Bitcoin P2P network crawler and server with the following 
 
 * Can serve seed data using gzipped, digitally signed protocol buffers over HTTP. This fixes authentication,
   auditability, malware false positives and extensibility. The signature uses secp256k1.
-* Can additionally serve data in JSON, XML, HTML and comma separated text formats for ease of use with other tools, like
+* Can additionally serve data in comma separated text format for ease of use with other tools, like
   web browsers and shell scripts.
 * Queries can be restricted using a service flags bit mask.
 * And for good measure, can also serve DNS queries too with a simple built in DNS server.

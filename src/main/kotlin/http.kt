@@ -18,9 +18,6 @@ package org.bitcoinj.httpseed
 
 import com.google.common.base.Splitter
 import com.google.common.io.BaseEncoding
-import com.googlecode.protobuf.format.HtmlFormat
-import com.googlecode.protobuf.format.JsonFormat
-import com.googlecode.protobuf.format.XmlFormat
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpHandler
 import com.sun.net.httpserver.HttpServer
@@ -145,9 +142,6 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
 
         val path = exchange.requestURI.path
         when {
-            path.endsWith(".html") -> respond(exchange, protoToHTML(msg), "text/html; charset=UTF-8", noCache)
-            path.endsWith(".json") -> respond(exchange, protoToJSON(msg), "application/json", noCache)
-            path.endsWith(".xml") ->  respond(exchange, protoToXML(msg), "text/xml", noCache)
             path.endsWith(".txt") ->  respond(exchange, protoToText(msg), "text/plain", noCache)
 
             // Default format is signed protobuf
@@ -156,9 +150,6 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
         log.info("Query ${exchange.getRequestURI()} from ${exchange.getRemoteAddress()} ${exchange.getRequestHeaders().get("User-Agent")} => ${data.size} peers")
     }
 
-    fun protoToHTML(msg: PeerSeedProtos.PeerSeeds) = HtmlFormat.printToString(msg).toByteArray()
-    fun protoToJSON(msg: PeerSeedProtos.PeerSeeds) = JsonFormat.printToString(msg).toByteArray()
-    fun protoToXML(msg: PeerSeedProtos.PeerSeeds)  = XmlFormat.printToString(msg).toByteArray()
     fun protoToText(msg: PeerSeedProtos.PeerSeeds) = msg.seedList.map { it.ipAddress }.joinToString(",").toByteArray()
 
     fun dataToProto(data: Pair<InetSocketAddress, PeerData>): PeerSeedProtos.PeerSeedData {
