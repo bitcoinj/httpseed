@@ -1,26 +1,42 @@
 package net.plan99.bitcoin.cartographer
 
-import org.bitcoinj.params.*
-import org.bitcoinj.core.*
+import com.google.common.io.BaseEncoding
+import com.google.common.primitives.UnsignedBytes
+import net.jcip.annotations.GuardedBy
+import org.bitcoinj.core.AddressMessage
+import org.bitcoinj.core.Coin
+import org.bitcoinj.core.Message
+import org.bitcoinj.core.NetworkParameters
+import org.bitcoinj.core.Peer
+import org.bitcoinj.core.PeerAddress
+import org.bitcoinj.core.Sha256Hash
+import org.bitcoinj.core.TransactionOutPoint
+import org.bitcoinj.core.TransactionOutput
+import org.bitcoinj.core.VersionMessage
 import org.bitcoinj.core.listeners.PreMessageReceivedEventListener
 import org.bitcoinj.kits.WalletAppKit
 import org.bitcoinj.net.NioClientManager
+import org.bitcoinj.params.MainNetParams
+import org.bitcoinj.params.TestNet3Params
 import org.bitcoinj.utils.Threading
 import org.mapdb.DBMaker
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.concurrent.*
-import java.util.*
+import org.threeten.bp.Duration
+import org.threeten.bp.Instant
 import java.io.Serializable
-import org.threeten.bp.*
-import java.net.InetSocketAddress
-import net.jcip.annotations.GuardedBy
-import com.google.common.io.BaseEncoding
-import com.google.common.primitives.UnsignedBytes
-import java.nio.file.Path
-import kotlin.concurrent.thread
-import java.net.InetAddress
 import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.nio.file.Path
+import java.util.Arrays
+import java.util.Collections
+import java.util.LinkedList
+import java.util.concurrent.DelayQueue
+import java.util.concurrent.Delayed
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import kotlin.concurrent.thread
 
 enum class PeerStatus {
     UNTESTED,

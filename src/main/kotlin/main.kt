@@ -1,15 +1,18 @@
 package net.plan99.bitcoin.cartographer
 
-import java.net.InetAddress
-import java.nio.file.*
-import java.util.logging.*
-import org.bitcoinj.utils.BriefLogFormatter
-import org.bitcoinj.core.NetworkParameters
-import java.lang.management.ManagementFactory
-import javax.management.ObjectName
-import joptsimple.OptionParser
-import org.xbill.DNS.Name
 import joptsimple.OptionException
+import joptsimple.OptionParser
+import org.bitcoinj.core.NetworkParameters
+import org.bitcoinj.utils.BriefLogFormatter
+import org.xbill.DNS.Name
+import java.lang.management.ManagementFactory
+import java.net.InetAddress
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.logging.FileHandler
+import java.util.logging.Level
+import java.util.logging.Logger
+import javax.management.ObjectName
 
 public class BitcoinHTTPSeed {
     companion object {

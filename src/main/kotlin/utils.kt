@@ -1,13 +1,12 @@
 package net.plan99.bitcoin.cartographer
 
-import com.google.common.util.concurrent.*
-import org.bitcoinj.utils.Threading
-import com.google.protobuf.ByteString
-import java.util.ArrayList
-import java.net.InetSocketAddress
 import com.google.common.net.HostAndPort
-import org.threeten.bp.Instant
-import org.threeten.bp.temporal.TemporalAmount
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.protobuf.ByteString
+import org.bitcoinj.utils.Threading
+import java.net.InetSocketAddress
 
 fun parseIPAndPort(ipAndPort: String): InetSocketAddress {
     val hostAndPort = HostAndPort.fromString(ipAndPort.trim())

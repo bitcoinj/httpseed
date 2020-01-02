@@ -1,19 +1,27 @@
 package net.plan99.bitcoin.cartographer
 
-import com.sun.net.httpserver.*
-import com.googlecode.protobuf.format.*
 import com.google.common.base.Splitter
 import com.google.common.io.BaseEncoding
-import java.net.*
-import java.nio.file.*
-import java.nio.charset.StandardCharsets;
-import java.io.ByteArrayOutputStream
-import org.threeten.bp.Instant
-import java.util.zip.GZIPOutputStream
-import org.bitcoinj.core.*
-import org.slf4j.LoggerFactory
+import com.googlecode.protobuf.format.HtmlFormat
+import com.googlecode.protobuf.format.JsonFormat
+import com.googlecode.protobuf.format.XmlFormat
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpHandler
+import com.sun.net.httpserver.HttpServer
 import org.bitcoin.crawler.PeerSeedProtos
+import org.bitcoinj.core.ECKey
+import org.bitcoinj.core.Sha256Hash
 import org.bitcoinj.utils.Threading
+import org.slf4j.LoggerFactory
+import org.threeten.bp.Instant
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.zip.GZIPOutputStream
 
 class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPath: Path, private val crawler: Crawler, private val netName: String) {
     private val log = LoggerFactory.getLogger("cartographer.http")

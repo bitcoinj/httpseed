@@ -1,9 +1,19 @@
 package net.plan99.bitcoin.cartographer
 
-import kotlin.concurrent.thread
 import org.slf4j.LoggerFactory
-import org.xbill.DNS.*
-import java.net.*
+import org.xbill.DNS.AAAARecord
+import org.xbill.DNS.ARecord
+import org.xbill.DNS.Flags
+import org.xbill.DNS.Message
+import org.xbill.DNS.Name
+import org.xbill.DNS.Opcode
+import org.xbill.DNS.Rcode
+import org.xbill.DNS.Section
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.Inet4Address
+import java.net.Inet6Address
+import kotlin.concurrent.thread
 
 // A small, simple DNS server.
 class DnsServer(private val dnsName: Name, private val port: Int, private val crawler: Crawler) {
