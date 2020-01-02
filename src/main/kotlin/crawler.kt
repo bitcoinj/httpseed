@@ -37,6 +37,9 @@ import org.bitcoinj.params.TestNet3Params
 import org.bitcoinj.script.ScriptPattern
 import org.bitcoinj.utils.Threading
 import org.mapdb.DBMaker
+import org.mapdb.DataInput2
+import org.mapdb.DataOutput2
+import org.mapdb.Serializer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.threeten.bp.Duration
@@ -77,13 +80,34 @@ data class PeerData(val status: PeerStatus, val serviceBits: Long, val lastCrawl
     }
 }
 
+private class PeerDataSerializer : Serializer<PeerData> {
+    override fun serialize(out: DataOutput2, value: PeerData) {
+        out.writeUTF(value.status.name)
+        out.writeLong(value.serviceBits)
+        out.writeLong(value.lastCrawlTime.toEpochMilli())
+        out.writeLong(value.lastSuccessTime?.toEpochMilli() ?: 0L)
+        out.writeBoolean(value.supportsGetUTXO)
+    }
+
+    override fun deserialize(input: DataInput2, available: Int): PeerData {
+        val status = PeerStatus.valueOf(input.readUTF())
+        val serviceBits = input.readLong()
+        val lastCrawlTime = Instant.ofEpochMilli(input.readLong())
+        val lastSuccessTimeLong = input.readLong();
+        val lastSuccessTime = if (lastSuccessTimeLong == 0L) null else Instant.ofEpochMilli(lastSuccessTimeLong)
+        val supportsGetUTXO = input.readBoolean()
+        return PeerData(status, serviceBits, lastCrawlTime, lastSuccessTime, supportsGetUTXO)
+    }
+}
+
 // Crawler engine
 class Crawler(private val console: Console, private val workingDir: Path, public val params: NetworkParameters, private val hostname: String) {
     private val log: Logger = LoggerFactory.getLogger("cartographer.engine")
 
     private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
     private val db = DBMaker.fileDB(workingDir.resolve("crawlerdb").toFile()).make()
-    public val addrMap: ConcurrentMap<InetSocketAddress, PeerData> = db.hashMap("addrToStatus").createOrOpen() as ConcurrentMap<InetSocketAddress, PeerData>
+    public val addrMap: ConcurrentMap<InetSocketAddress, PeerData> =
+            db.hashMap("addrToStatus").valueSerializer(PeerDataSerializer()).createOrOpen() as ConcurrentMap<InetSocketAddress, PeerData>
     @GuardedBy("this") private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
 
     private val connecting: MutableSet<InetSocketAddress> = Collections.synchronizedSet(HashSet())
