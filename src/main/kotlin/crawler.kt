@@ -105,7 +105,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
     private val log: Logger = LoggerFactory.getLogger("cartographer.engine")
 
     private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
-    private val db = DBMaker.fileDB(workingDir.resolve("crawlerdb").toFile()).make()
+    private val db = DBMaker.fileDB(workingDir.resolve("httpseed-db").toFile()).make()
     public val addrMap: ConcurrentMap<InetSocketAddress, PeerData> =
             db.hashMap("addrToStatus").valueSerializer(PeerDataSerializer()).createOrOpen() as ConcurrentMap<InetSocketAddress, PeerData>
     @GuardedBy("this") private val okPeers: LinkedList<InetSocketAddress> = LinkedList()
