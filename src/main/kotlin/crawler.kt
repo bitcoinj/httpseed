@@ -34,6 +34,7 @@ import org.bitcoinj.kits.WalletAppKit
 import org.bitcoinj.net.NioClientManager
 import org.bitcoinj.params.MainNetParams
 import org.bitcoinj.params.TestNet3Params
+import org.bitcoinj.script.ScriptPattern
 import org.bitcoinj.utils.Threading
 import org.mapdb.DBMaker
 import org.slf4j.Logger
@@ -324,7 +325,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
 
             if (params == TestNet3Params.get()) {
                 txhash = Sha256Hash.wrap("1c899ae8efd6bd460e517195dc34d2beeca9c5e76ff98af644cf6a28807f86cf")
-                outcheck = { it.value == Coin.parseCoin("0.00001") && it.scriptPubKey.isSentToAddress && it.scriptPubKey.getToAddress(params).toString() == "mydzGfTrtHx8KnCRu43HfKwYyKjjSo6gUB" }
+                outcheck = { it.value == Coin.parseCoin("0.00001") && ScriptPattern.isP2PKH(it.scriptPubKey) && it.scriptPubKey.getToAddress(params).toString() == "mydzGfTrtHx8KnCRu43HfKwYyKjjSo6gUB" }
                 height = 314941
             } else if (params == MainNetParams.get()) {
                 // For now just assume Satoshi never spends the first block ever mined. There are much
@@ -332,7 +333,7 @@ class Crawler(private val console: Console, private val workingDir: Path, public
                 // not deliberately malicious peers that try to cheat this check.
                 txhash = Sha256Hash.wrap("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098")
                 val pubkey = "0496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858ee"
-                outcheck = { it.value == Coin.FIFTY_COINS && it.scriptPubKey.isSentToRawPubKey &&
+                outcheck = { it.value == Coin.FIFTY_COINS && ScriptPattern.isP2PK(it.scriptPubKey) &&
                              // KT-6587 means we cannot use == as you would expect here.
                              Arrays.equals(it.scriptPubKey.chunks[0].data, BaseEncoding.base16().decode(pubkey.toUpperCase())) }
                 height = 1
