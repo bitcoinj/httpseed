@@ -39,7 +39,6 @@ dependencies {
     implementation 'org.mapdb:mapdb:3.0.7'
     implementation 'dnsjava:dnsjava:2.1.9'
     implementation 'net.sf.jopt-simple:jopt-simple:5.0.4'
-    implementation 'org.threeten:threetenbp:1.4.0'
 }
 
 compileKotlin {
