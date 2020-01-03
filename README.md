@@ -81,3 +81,20 @@ key in hex and this can be distributed in applications (assuming you keep your p
 
 In many setups you will want to run the server as a non-root user. You can use iptables to redirect the DNS port. Then
 just add an NS record for the right host name.
+
+Docker
+======
+
+To build the docker image, after building the app run:
+
+```shell script
+docker build -t httpseed .
+```
+
+To run the docker image, run:
+
+```shell script
+docker run -it --rm -v /tmp/data:/data -e HTTP_ADDRESS=localhost -e HTTP_PORT=8080 httpseed
+```
+
+Make sure to map the volume to a persistent location, as it contains your signing key.
