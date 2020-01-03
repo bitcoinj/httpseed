@@ -24,6 +24,7 @@ import org.xbill.DNS.Name
 import java.net.InetAddress
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.logging.ConsoleHandler
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -74,17 +75,13 @@ public class BitcoinHTTPSeed {
             Runtime.getRuntime().addShutdownHook(Thread { crawler.stop() })
         }
 
-        private var loggerPin: java.util.logging.Logger? = null
+        private var loggerPin: Logger? = null
         private fun setupLogging(dir: Path, logToConsole: Boolean) {
-            val logger = java.util.logging.Logger.getLogger("")
-            val handler = FileHandler(dir.resolve("log.txt").toString(), true)
+            val logger = Logger.getLogger("")
+            val handler = if (logToConsole) { ConsoleHandler() } else { FileHandler(dir.resolve("log.txt").toString(), true) }
             handler.formatter = BriefLogFormatter()
+            logger.removeHandler(logger.handlers[0])
             logger.addHandler(handler)
-            if (logToConsole) {
-                logger.handlers[0].formatter = BriefLogFormatter()
-            } else {
-                logger.removeHandler(logger.handlers[0])
-            }
             loggerPin = logger
 
             Logger.getLogger("org.bitcoinj").level = Level.SEVERE
