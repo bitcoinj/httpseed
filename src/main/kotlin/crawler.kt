@@ -20,21 +20,26 @@ import com.google.common.io.BaseEncoding
 import com.google.common.primitives.UnsignedBytes
 import net.jcip.annotations.GuardedBy
 import org.bitcoinj.core.AddressMessage
+import org.bitcoinj.core.BlockChain
 import org.bitcoinj.core.Coin
 import org.bitcoinj.core.Message
 import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.core.Peer
 import org.bitcoinj.core.PeerAddress
+import org.bitcoinj.core.PeerGroup
 import org.bitcoinj.core.Sha256Hash
 import org.bitcoinj.core.TransactionOutPoint
 import org.bitcoinj.core.TransactionOutput
+import org.bitcoinj.core.Utils
 import org.bitcoinj.core.VersionMessage
+import org.bitcoinj.core.listeners.DownloadProgressTracker
 import org.bitcoinj.core.listeners.PreMessageReceivedEventListener
-import org.bitcoinj.kits.WalletAppKit
 import org.bitcoinj.net.NioClientManager
+import org.bitcoinj.net.discovery.DnsDiscovery
 import org.bitcoinj.params.MainNetParams
 import org.bitcoinj.params.TestNet3Params
 import org.bitcoinj.script.ScriptPattern
+import org.bitcoinj.store.MemoryBlockStore
 import org.bitcoinj.utils.Threading
 import org.mapdb.DBMaker
 import org.mapdb.DataInput2
@@ -51,7 +56,9 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Arrays
 import java.util.Collections
+import java.util.Date
 import java.util.LinkedList
+import java.util.Locale
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.DelayQueue
 import java.util.concurrent.Delayed
@@ -104,7 +111,10 @@ private class PeerDataSerializer : Serializer<PeerData> {
 class Crawler(private val workingDir: Path, public val params: NetworkParameters, private val hostname: String) {
     private val log: Logger = LoggerFactory.getLogger("cartographer.engine")
 
-    private val kit = WalletAppKit(params, workingDir.toFile(), "cartographer")
+    private val blockStore = MemoryBlockStore(params)
+    private val blockChain = BlockChain(params, blockStore)
+    private val peerGroup = PeerGroup(params, blockChain)
+
     private val db = DBMaker.fileDB(workingDir.resolve("httpseed-db").toFile()).make()
     public val addrMap: ConcurrentMap<InetSocketAddress, PeerData> =
             db.hashMap("addrToStatus").valueSerializer(PeerDataSerializer()).createOrOpen() as ConcurrentMap<InetSocketAddress, PeerData>
@@ -153,15 +163,31 @@ class Crawler(private val workingDir: Path, public val params: NetworkParameters
         log.info("Starting crawl network manager")
         ccm.startAsync().awaitRunning()
 
-        // We use a regular WAK setup to learn about the state of the network but not to crawl it.
+        // We use a regular PeerGroup setup to learn about the state of the network but not to crawl it.
+        log.info("Starting peer group ...")
+        peerGroup.setFastCatchupTimeSecs(Instant.now().epochSecond)
+        peerGroup.setUserAgent(PRODUCT_NAME, VERSION, hostname)
+        peerGroup.setMaxConnections(12)
+        peerGroup.addPeerDiscovery(DnsDiscovery(params))
+        peerGroup.start()
+
+        log.info("Waiting for peers to connect ...")
+        peerGroup.waitForPeers(8).get(30, TimeUnit.SECONDS);
+
         log.info("Waiting for block chain headers to sync ...")
-        kit.startAsync().awaitRunning()
-        kit.peerGroup().setUserAgent(PRODUCT_NAME, VERSION, hostname)
+        val listener = object : DownloadProgressTracker() {
+            override fun progress(pct: Double, blocksSoFar: Int, date: Date?) {
+                log.info(String.format(Locale.US, "Chain download %d%% done with %d blocks to go, block date %s",
+                        pct.toInt(), blocksSoFar, Utils.dateTimeFormat(date)))
+            }
+        }
+        peerGroup.startBlockChainDownload(listener)
+        listener.await()
         log.info("Chain synced, querying initial addresses")
-        val peer = kit.peerGroup().waitForPeers(1).get()[0]
+        val peer = peerGroup.waitForPeers(1).get()[0]
 
         // When we receive an addr broadcast from our long-term network connections, queue up the addresses for crawling.
-        kit.peerGroup().addPreMessageReceivedEventListener(Threading.SAME_THREAD, object : PreMessageReceivedEventListener {
+        peerGroup.addPreMessageReceivedEventListener(Threading.SAME_THREAD, object : PreMessageReceivedEventListener {
             override fun onPreMessageReceived(peer: Peer, m: Message): Message {
                 if (m is AddressMessage) {
                     Threading.USER_THREAD.execute {
@@ -198,6 +224,7 @@ class Crawler(private val workingDir: Path, public val params: NetworkParameters
 
     fun stop() {
         log.info("Stopping ...")
+        peerGroup.stop()
         db.close()
     }
 
@@ -311,7 +338,7 @@ class Crawler(private val workingDir: Path, public val params: NetworkParameters
     private fun onConnect(sockaddr: InetSocketAddress, peer: Peer) {
         connecting.remove(sockaddr)
 
-        val heightDiff = kit.chain().bestChainHeight - peer.bestHeight
+        val heightDiff = blockChain.bestChainHeight - peer.bestHeight
         if (heightDiff > 6) {
             log.warn("Peer $peer is behind our block chain by $heightDiff blocks")
             markAs(sockaddr, PeerStatus.BEHIND)
