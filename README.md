@@ -35,14 +35,23 @@ There is support in bitcoinj git master (from 0.13 onwards) for using the protob
 The code is written in Kotlin (sort of like a smaller, simpler Scala), so it's concise and easy to hack. Despite the
 large number of features it comes to only about 670 lines of code.
 
+Building
+========
+
+You will need a Java 8 (or later) SDK and Gradle. Run:
+
+```shell script
+./gradlew clean shadowJar
+```
+
 Usage
 =====
 
-You will need a Java 8 runtime. Then [grab the JAR](https://github.com/mikehearn/httpseed/releases/) and use it like this:
+You will need a Java 8 (or later) runtime. After building, use it like this:
 
-```
+```shell script
 java -Xmx300m
-     -jar cartographer.jar
+     -jar build/libs/httpseed-all.jar
      --dir=/path/to/a/working/directory
      --net={test,main}
      --http-port=8080
