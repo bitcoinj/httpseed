@@ -3,7 +3,7 @@ Bitcoin HTTP Seed
 
 HTTPSeed is a Bitcoin peer to peer network crawler and seed server.
 
-*[Download HTTPSeed](https://github.com/mikehearn/httpseed/releases)*
+*[Download HTTPSeed](https://github.com/bitcoinj/httpseed/releases)*
 
 Like all peer to peer networks, Bitcoin requires hard coded starting points (sometimes called directories) that can be used to
 find some initial peers to connect to. Currently Bitcoin nodes and wallets use DNS lookups for this purpose. DNS is
