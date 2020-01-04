@@ -72,11 +72,3 @@ key in hex and this can be distributed in applications (assuming you keep your p
 
 In many setups you will want to run the server as a non-root user. You can use iptables to redirect the DNS port. Then
 just add an NS record for the right host name.
-
-Possible future features
-========================
-
-Ideas for the future:
-
-* Probe peers through Tor to check behaviours that lightweight clients find hard to check on their own.
-* Find other ways to distribute the signed network maps (e.g. via the p2p network itself).
