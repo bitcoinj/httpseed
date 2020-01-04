@@ -155,7 +155,7 @@ class Crawler(private val workingDir: Path, public val params: NetworkParameters
         loadFromDB()
 
         val VERSION = "1.2"
-        val PRODUCT_NAME = "Cartographer"
+        val PRODUCT_NAME = "HTTPSeed"
 
         verMsg.appendToSubVer(PRODUCT_NAME, VERSION, hostname)
 
