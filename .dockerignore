@@ -1,2 +1,3 @@
 *
-!build/libs/httpseed-all.jar
+!src/
+!build.gradle

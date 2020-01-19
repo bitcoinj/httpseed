@@ -85,13 +85,13 @@ just add an NS record for the right host name.
 Docker
 ======
 
-To build the docker image, after building the app run:
+To build the docker image (including HTTPSeed itself), run:
 
 ```shell script
 docker build -t httpseed .
 ```
 
-To run the docker image, run:
+To run HTTPSeed inside docker, run:
 
 ```shell script
 docker run -it --rm -v /tmp/data:/data -e HTTP_ADDRESS=localhost -e HTTP_PORT=8080 httpseed
