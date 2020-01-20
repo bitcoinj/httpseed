@@ -27,17 +27,6 @@ RUN cp /home/builder/build/libs/httpseed-all.jar / && \
     apk del gradle
 
 FROM build-httpseed AS run-httpseed
-ENV HTTP_ADDRESS localhost
-ENV HTTP_PORT 8080
-ENV HOSTNAME example.com
 VOLUME /data
-CMD java \
-    -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap \
-    -jar httpseed-all.jar \
-    --dir=/data \
-    --net=main \
-    --http-address=$HTTP_ADDRESS \
-    --http-port=$HTTP_PORT \
-    --hostname=$HOSTNAME \
-    --log-to-console \
-    --crawls-per-sec=10
+ENTRYPOINT ["java", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-jar", "httpseed-all.jar", "--dir=/data", "--log-to-console"]
+CMD ["--help"]

@@ -94,7 +94,7 @@ docker build -t httpseed .
 To run HTTPSeed inside docker, run:
 
 ```shell script
-docker run -it --rm -v /tmp/data:/data -e HTTP_ADDRESS=localhost -e HTTP_PORT=8080 httpseed
+docker run -it --rm -v /tmp/data:/data -p 8080:8080 httpseed --hostname=example.com
 ```
 
 Make sure to map the volume to a persistent location, as it contains your signing key.
