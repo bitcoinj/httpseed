@@ -19,7 +19,6 @@ package org.bitcoinj.httpseed
 import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.params.MainNetParams
 import org.bitcoinj.utils.BriefLogFormatter
-import org.xbill.DNS.Name
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -48,14 +47,8 @@ class BitcoinHTTPSeed : Callable<Int> {
     @Option(names = ["--http-port"], description = ["Port the HTTP server will bind to. Default: \${DEFAULT-VALUE}"])
     private var httpPort = 8080
 
-    @Option(names = ["--dns-port"], description = ["Port the DNS server will bind to. Default: \${DEFAULT-VALUE}"])
-    private var dnsPort = 2053
-
     @Option(names = ["--hostname"], required = true, description = ["Hostname of the box that is running the crawler."])
     private var hostname = "example.com"
-
-    @Option(names = ["--dnsname"], description = ["Name that the DNS server will respond to (via UDP only)."])
-    private var dnsname = null
 
     @Option(names = ["--log-to-console"], description = ["Log to console rather than to file. Default: \${DEFAULT-VALUE}"])
     private var logToConsole = false
@@ -73,8 +66,6 @@ class BitcoinHTTPSeed : Callable<Int> {
         val crawler = Crawler(dir, params, hostname)
         HttpSeed(if (httpAddress != null) InetAddress.getByName(httpAddress) else null,
                 httpPort, "", dir.resolve("privkey"), crawler, params.paymentProtocolId)
-        if (dnsname != null)
-            DnsServer(Name(if (dnsname!!.endsWith('.')) dnsname else dnsname + '.'), dnsPort, crawler).start()
         crawler.start()
 
         Runtime.getRuntime().addShutdownHook(Thread { crawler.stop() })

@@ -26,7 +26,6 @@ This application is a Bitcoin P2P network crawler and server with the following 
 * Can additionally serve data in comma separated text format for ease of use with other tools, like
   web browsers and shell scripts.
 * Queries can be restricted using a service flags bit mask.
-* And for good measure, can also serve DNS queries too with a simple built in DNS server.
 * Crawl speed can be specified in terms of successful connects per second, rather than the crude number-of-threads
   approach used by other crawlers.
 
@@ -55,8 +54,6 @@ java -Xmx300m
      --dir=/path/to/a/working/directory
      --net={test,main}
      --http-port=8080
-     --dns-hostname={main,test}.seed.example.com
-     --dns-port=2053
      --hostname=example.com
      --log-to-console
      --crawls-per-sec=15
@@ -69,8 +66,6 @@ Most flags are self explanatory. A few that aren't:
 * `--hostname`: This should be the hostname of the box that is running the crawler. It will be resolved and used to
   substitute for a localhost IP if one is found, to avoid problems with machines that report their hostname wrong.
   It will also be put into the version message sent by the crawler so people know who to contact if there's a problem.
-* `--dns-hostname` (optional): This is the name that the DNS server will respond to (via UDP only). It
-  should be set to whatever hostname you have allocated for DNS if you have chosen to do so.
 * `--crawls-per-sec`: Max connects per second to do. If this is set too high then you might not be able to crawl
   the full network because you'll max out your CPU or bandwidth and you will end up with initial connections timing
   out (then they won't be recrawled). 15 is a lower bound, it works OK for a weak VPS.
@@ -79,8 +74,7 @@ The other flags should be self explanatory. A signing key will be created and sa
 time you run the app. After that it'll be reused for signing. By running with --log-to-console you will see the public
 key in hex and this can be distributed in applications (assuming you keep your private key safe of course!).
 
-In many setups you will want to run the server as a non-root user. You can use iptables to redirect the DNS port. Then
-just add an NS record for the right host name.
+In many setups you will want to run the server as a non-root user.
 
 Docker
 ======
