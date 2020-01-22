@@ -28,5 +28,8 @@ RUN cp /home/builder/build/libs/httpseed-all.jar / && \
 
 FROM build-httpseed AS run-httpseed
 VOLUME /data
-ENTRYPOINT ["java", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-jar", "httpseed-all.jar", "--dir=/data", "--log-to-console"]
+RUN apk add --no-cache su-exec && \
+    adduser --no-create-home --system --shell /bin/false runner
+COPY docker-entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--help"]
