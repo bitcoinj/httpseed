@@ -33,6 +33,7 @@ import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import java.time.Instant
 import java.util.zip.GZIPOutputStream
 
@@ -50,6 +51,11 @@ class HttpSeed(address: InetAddress?, port: Int, baseUrlPath: String, privkeyPat
             val str = Files.readAllLines(privkeyPath, StandardCharsets.UTF_8)[0].trim()
             privkey = ECKey.fromPrivate(BaseEncoding.base16().decode(str.toUpperCase()))
             log.info("Using public key: ${privkey.publicKeyAsHex}")
+        }
+        try {
+            Files.setPosixFilePermissions(privkeyPath, PosixFilePermissions.fromString("r--------"))
+        } catch (x: UnsupportedOperationException) {
+            log.warn("Failed to restrict file access to private key: ${x.message}")
         }
         val inetSocketAddress = InetSocketAddress(address, port)
         log.info("Binding HTTP server to $inetSocketAddress, context path is ${if (baseUrlPath.isEmpty()) "/" else baseUrlPath}")
