@@ -36,7 +36,7 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-java:3.11.1'
     implementation 'org.mapdb:mapdb:3.0.7'
     implementation 'dnsjava:dnsjava:2.1.9'
-    implementation 'net.sf.jopt-simple:jopt-simple:5.0.4'
+    implementation 'info.picocli:picocli:4.1.4'
 }
 
 compileKotlin {
