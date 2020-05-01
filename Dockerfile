@@ -31,5 +31,6 @@ VOLUME /data
 RUN apk add --no-cache su-exec && \
     adduser --no-create-home --system --shell /bin/false runner
 COPY docker-entrypoint.sh /entrypoint.sh
+EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--help"]
