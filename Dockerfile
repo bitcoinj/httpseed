@@ -21,16 +21,13 @@ USER builder
 COPY --chown=builder:nogroup / /home/builder
 RUN gradle --version > /dev/null && \
     gradle --build-file /home/builder/build.gradle --no-daemon --no-build-cache --no-parallel clean shadowJar
-USER root
-RUN cp /home/builder/build/libs/httpseed-all.jar / && \
-    deluser --remove-home builder && \
-    apk del gradle
 
-FROM build-httpseed AS run-httpseed
+FROM openjdk:8-alpine AS run-httpseed
 VOLUME /data
 RUN apk add --no-cache su-exec && \
     adduser --no-create-home --system --shell /bin/false runner
 COPY docker-entrypoint.sh /entrypoint.sh
+COPY --from=build-httpseed /home/builder/build/libs/httpseed-all.jar /httpseed-all.jar
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--help"]
