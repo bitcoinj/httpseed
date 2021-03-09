@@ -36,6 +36,7 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-java:3.11.4'
     implementation 'org.mapdb:mapdb:3.0.8'
     implementation 'info.picocli:picocli:4.6.1'
+    implementation 'net.jcip:jcip-annotations:1.0'
 }
 
 compileKotlin {
